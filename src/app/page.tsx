@@ -1,11 +1,20 @@
+import Image from "next/image";
 import { Game } from "@/components/Game";
 
 export default function Home() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <header className="pb-4 text-center">
-        <h1 className="font-display text-3xl tracking-widest text-white">MOVIE HORSE</h1>
-        <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Don&apos;t spell M-O-V-I-E</p>
+      <header className="flex justify-center pb-3">
+        <h1>
+          <Image
+            src="/logo-480.webp"
+            alt="Movie Horse"
+            width={480}
+            height={320}
+            priority
+            className="h-auto w-36 drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)]"
+          />
+        </h1>
       </header>
 
       <div className="flex flex-1 flex-col">
