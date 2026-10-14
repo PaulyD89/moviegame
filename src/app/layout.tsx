@@ -14,9 +14,9 @@ const body = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "The Movie Game",
+  title: "Movie Horse — Don't spell M-O-V-I-E",
   description: "Name the actor. Name the movie. Don't spell M-O-V-I-E. A new chain every day.",
-  appleWebApp: { capable: true, title: "Movie Game", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Movie Horse", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {

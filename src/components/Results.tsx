@@ -40,7 +40,7 @@ export function shareText(game: SavedGame) {
     .join(" ");
   const time = game.finishedAt ? ` · ${formatTime(game.finishedAt - game.startedAt)}` : "";
   return [
-    `The Movie Game #${game.number} 🎞️`,
+    `Movie Horse #${game.number} 🐴`,
     `${game.links.length}/${LINKS_TO_WIN} links${time}`,
     trail,
     `${word}`,
