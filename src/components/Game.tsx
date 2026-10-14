@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { pass, startDaily, submitGuess } from "@/app/actions";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
+import { Logo } from "./Logo";
 import { Results } from "./Results";
 import { loadGame, recordResult, saveGame, type SavedGame } from "./storage";
 
@@ -48,8 +49,20 @@ export function Game() {
     if (game) saveGame(game);
   }, [game]);
 
-  if (error) return <p className="p-8 text-center text-red-300">{error}</p>;
-  if (!game) return <p className="p-8 text-center text-zinc-400 animate-pulse">Rolling film…</p>;
+  if (error)
+    return (
+      <>
+        <Logo size="sm" />
+        <p className="p-8 text-center text-red-300">{error}</p>
+      </>
+    );
+  if (!game)
+    return (
+      <>
+        <Logo size="sm" />
+        <p className="p-8 text-center text-zinc-400 animate-pulse">Rolling film…</p>
+      </>
+    );
   if (game.status !== "playing") return <Results game={game} />;
 
   const { card } = game;
@@ -127,6 +140,7 @@ export function Game() {
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
+      <Logo size="sm" />
       <Letters count={game.letters} />
 
       <Progress links={game.links.length} />

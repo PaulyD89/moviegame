@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
+import { Logo } from "./Logo";
 import { loadStats, type SavedGame, type Stats } from "./storage";
 
 function formatTime(ms: number) {
@@ -74,7 +75,8 @@ export function Results({ game }: { game: SavedGame }) {
 
   return (
     <div className="flex w-full flex-col items-center gap-6">
-      <div className="text-center">
+      <Logo size="lg" />
+      <div className="-mt-2 text-center">
         <h2 className="font-display text-5xl tracking-wide text-amber-400">
           {won ? "That's a wrap!" : "M-O-V-I-E"}
         </h2>
