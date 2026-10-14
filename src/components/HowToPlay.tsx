@@ -111,8 +111,8 @@ export function HowToPlay({ onClose }: { onClose: () => void }) {
         </div>
 
         <p className="mt-4 text-center text-xs text-zinc-500">
-          Some days start with an actor instead: name a movie they were in. Spelling counts, but
-          capitals, accents and punctuation don&apos;t. New chain every day.
+          Some days start with an actor instead: name a movie they were in. Small typos are OK;
+          we&apos;ll show you the right spelling. New chain every day.
         </p>
 
         <button

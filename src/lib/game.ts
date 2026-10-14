@@ -1,5 +1,5 @@
 import "server-only";
-import { nameKey } from "./normalize";
+import { closeness, nameKey, titleKey } from "./normalize";
 import {
   getMovie,
   getPerson,
@@ -118,33 +118,54 @@ export async function dailyStart(dateStr: string): Promise<{ number: number; car
 }
 
 export type Match =
-  | { outcome: "correct"; answer: Card }
+  | { outcome: "correct"; answer: Card; close: boolean }
   | { outcome: "wrong" }
   | { outcome: "used"; answer: Card };
 
-/** Is `guess` a valid answer for `card`? Shared by the daily game and challenges. */
+/** Best candidates by closeness, keeping the input's priority order for ties. */
+function ranked<T>(items: T[], score: (item: T) => number) {
+  const scored = items.map((item) => ({ item, dist: score(item) })).filter((s) => s.dist < Infinity);
+  const best = Math.min(...scored.map((s) => s.dist));
+  return { best, items: scored.filter((s) => s.dist === best).map((s) => s.item) };
+}
+
+const lastName = (name: string) => nameKey(name.trim().split(/\s+/).at(-1) ?? "");
+
+/**
+ * Is `guess` a valid answer for `card`? Shared by the daily game and challenges.
+ * Forgives small typos, a missing "The", and last-name-only when it's unambiguous.
+ */
 export async function matchGuess(card: Card, guess: string, used: Set<string>): Promise<Match> {
   const key = nameKey(guess);
   if (!key) return { outcome: "wrong" };
 
   if (card.kind === "movie") {
-    const movie = await getMovie(card.id);
-    const match = movie.credits.cast.find((c) => nameKey(c.name) === key);
-    if (!match) return { outcome: "wrong" };
-    const answer = personCard(await getPerson(match.id));
-    return used.has(cardKey(answer)) ? { outcome: "used", answer } : { outcome: "correct", answer };
+    const cast = (await getMovie(card.id)).credits.cast; // already in billing order
+    let { best, items } = ranked(cast, (c) => closeness([key], [nameKey(c.name)]));
+    if (items.length === 0 && key.length >= 4) {
+      // Last name only, e.g. "Cruise" for Top Gun, if exactly one cast member has it.
+      const byLast = ranked(cast, (c) => closeness([key], [lastName(c.name)]));
+      const people = new Set(byLast.items.map((c) => c.id));
+      if (people.size === 1) ({ best, items } = { best: 1, items: byLast.items });
+    }
+    if (items.length === 0) return { outcome: "wrong" };
+    const answer = personCard(await getPerson(items[0].id));
+    if (used.has(cardKey(answer))) return { outcome: "used", answer };
+    return { outcome: "correct", answer, close: best > 0 };
   }
 
-  const person = await getPerson(card.id);
-  const matches = person.movie_credits.cast
-    .filter((c) => nameKey(c.title) === key || nameKey(c.original_title) === key)
+  const credits = (await getPerson(card.id)).movie_credits.cast
+    .slice()
     .sort((a, b) => b.vote_count - a.vote_count);
-  if (matches.length === 0) return { outcome: "wrong" };
+  const { best, items } = ranked(credits, (c) =>
+    closeness([key, titleKey(guess)], [nameKey(c.title), nameKey(c.original_title), titleKey(c.title)]),
+  );
+  if (items.length === 0) return { outcome: "wrong" };
 
   // Same title can exist twice (remakes); prefer one not yet used.
-  const match = matches.find((m) => !used.has(cardKey({ kind: "movie", id: m.id })));
-  if (!match) return { outcome: "used", answer: movieCard(await getMovie(matches[0].id)) };
-  return { outcome: "correct", answer: movieCard(await getMovie(match.id)) };
+  const match = items.find((m) => !used.has(cardKey({ kind: "movie", id: m.id })));
+  if (!match) return { outcome: "used", answer: movieCard(await getMovie(items[0].id)) };
+  return { outcome: "correct", answer: movieCard(await getMovie(match.id)), close: best > 0 };
 }
 
 /** A well-known starting movie for a new chain (challenges, and after a miss in one). */
@@ -162,7 +183,7 @@ export async function checkGuess(
   const result = await matchGuess(card, guess, used);
   if (result.outcome !== "correct") return result;
 
-  const { answer } = result;
+  const { answer, close } = result;
   used.add(cardKey(answer));
   const seed = `${dateStr}:${cardKey(answer)}`;
   const next =
@@ -171,7 +192,7 @@ export async function checkGuess(
         (await freshCard("movie", used, seed)))
       : ((await nextPersonFor(await getMovie(answer.id), used, seed)) ??
         (await freshCard("person", used, seed)));
-  return { outcome: "correct", answer, next };
+  return { outcome: "correct", answer, next, close };
 }
 
 /** Swap the current card for another of the same kind (costs a letter on the client). */

@@ -121,11 +121,11 @@ export function Game() {
         return;
       }
 
-      const { answer, next: nextCard } = result;
+      const { answer, next: nextCard, close } = result;
       const links = [...game!.links, { card, answer }];
       const won = links.length >= LINKS_TO_WIN;
       setGuess("");
-      setFeedback({ tone: "good", text: `✓ ${answer.name}` });
+      setFeedback({ tone: "good", text: close ? `Close enough! ✓ ${answer.name}` : `✓ ${answer.name}` });
       setGame(
         finish({
           ...game!,

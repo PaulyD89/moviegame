@@ -538,7 +538,7 @@ function Finished({ state }: { state: ChallengeView }) {
       {chain.length > 0 && (
         <div className="w-full">
           <div className="mb-2 text-xs uppercase tracking-wider text-zinc-500">
-            {chain.length} links made
+            {chain.length} {chain.length === 1 ? "link" : "links"} made
           </div>
           <ol className="-mx-4 flex w-[calc(100%+2rem)] snap-x gap-3 overflow-x-auto px-4 pb-2">
             {chain.map((m) => (

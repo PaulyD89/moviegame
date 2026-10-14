@@ -12,10 +12,13 @@ export default function ChallengeRoomPage({ params }: PageProps<"/c/[id]">) {
   return (
     <Shell>
       <Suspense fallback={<p className="p-8 text-center text-zinc-400">Loading challenge…</p>}>
-        {params.then(({ id }) => (
-          <ChallengeRoom id={id} />
-        ))}
+        <Room params={params} />
       </Suspense>
     </Shell>
   );
+}
+
+async function Room({ params }: { params: PageProps<"/c/[id]">["params"] }) {
+  const { id } = await params;
+  return <ChallengeRoom id={id} />;
 }

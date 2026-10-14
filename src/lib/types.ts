@@ -15,7 +15,7 @@ export type Card = {
 export const cardKey = (c: Pick<Card, "kind" | "id">) => `${c.kind}:${c.id}`;
 
 export type GuessResult =
-  | { outcome: "correct"; answer: Card; next: Card | null }
+  | { outcome: "correct"; answer: Card; next: Card | null; close: boolean }
   | { outcome: "wrong" }
   | { outcome: "used"; answer: Card };
 
