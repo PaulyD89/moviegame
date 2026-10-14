@@ -78,7 +78,7 @@ export function HowToPlay({ onClose }: { onClose: () => void }) {
         </ol>
 
         <div className="mt-5 rounded-2xl bg-white/5 p-4">
-          <div className="text-[11px] uppercase tracking-widest text-zinc-500">Example chain</div>
+          <div className="text-[11px] uppercase tracking-widest text-zinc-300">Example chain</div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
             {EXAMPLE.map((name, i) => (
               <span key={name} className="flex items-center gap-1.5">
@@ -106,11 +106,11 @@ export function HowToPlay({ onClose }: { onClose: () => void }) {
                 </span>
               ))}
             </div>
-            <span className="text-xs text-zinc-400">2 strikes. 3 to go.</span>
+            <span className="text-xs text-zinc-200">2 strikes. 3 to go.</span>
           </div>
         </div>
 
-        <p className="mt-4 text-center text-xs text-zinc-500">
+        <p className="mt-4 text-center text-sm leading-snug text-white">
           Some days start with an actor instead: name a movie they were in. Small typos are OK;
           we&apos;ll show you the right spelling. New chain every day.
         </p>
@@ -118,7 +118,7 @@ export function HowToPlay({ onClose }: { onClose: () => void }) {
         <button
           ref={buttonRef}
           onClick={close}
-          className="mt-5 min-h-12 w-full rounded-xl bg-amber-400 text-lg font-bold text-black active:scale-[0.98]"
+          className="mt-5 min-h-12 w-full rounded-xl bg-amber-400 text-lg font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-[0.98]"
         >
           Roll film
         </button>
