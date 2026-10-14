@@ -6,9 +6,11 @@ import {
   getStarterPool,
   posterUrl,
   profileUrl,
+  type StarterMovie,
   type TmdbMovie,
   type TmdbPerson,
 } from "./tmdb";
+import { createAdminClient } from "./supabase/admin";
 import { cardKey, type Card, type GuessResult } from "./types";
 
 const LAUNCH = Date.UTC(2026, 9, 14); // puzzle #1
@@ -46,26 +48,33 @@ function hash(s: string) {
   return h >>> 0;
 }
 
+/** The game never shows movies before 1970, and shows 1970s ones half as often. */
+const MIN_YEAR = 1970;
+const yearWeight = (year?: number) => (!year || year < MIN_YEAR ? 0 : year < 1980 ? 0.5 : 1);
+
 /**
- * Same seed + same candidates = same pick, so players who give the same answer
- * on the same day see the same next card. Skips ahead past anything already used.
+ * Weighted pick that's repeatable: same seed + same candidates = same pick, so players
+ * who give the same answer on the same day see the same next card.
  */
-function pickStable<T>(items: T[], seed: string, isUsed: (item: T) => boolean): T | undefined {
-  const start = hash(seed) % Math.max(items.length, 1);
-  for (let i = 0; i < items.length; i++) {
-    const item = items[(start + i) % items.length];
-    if (!isUsed(item)) return item;
+function pickWeighted<T>(items: T[], seed: string, weight: (item: T) => number): T | undefined {
+  const weighted = items.map((item) => ({ item, w: weight(item) })).filter((x) => x.w > 0);
+  const total = weighted.reduce((sum, x) => sum + x.w, 0);
+  if (total === 0) return undefined;
+  let r = (hash(seed) / 2 ** 32) * total;
+  for (const x of weighted) {
+    r -= x.w;
+    if (r < 0) return x.item;
   }
-  return undefined;
+  return weighted.at(-1)!.item;
 }
 
-/** A well-known movie this person acted in that hasn't been used yet. */
+/** A well-known movie (1970+) this person acted in that hasn't been used yet. */
 async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string): Promise<Card | null> {
-  const isUsed = (c: { id: number }) => used.has(cardKey({ kind: "movie", id: c.id }));
   const credits = person.movie_credits.cast.filter(
     (c) =>
       c.poster_path &&
-      c.release_date &&
+      yearWeight(yearOf(c.release_date)) > 0 &&
+      !used.has(cardKey({ kind: "movie", id: c.id })) &&
       !NOT_A_ROLE.test(c.character ?? "") &&
       !c.genre_ids.some((g) => SKIP_GENRES.has(g)),
   );
@@ -74,7 +83,7 @@ async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string)
       .filter((c) => c.vote_count >= minVotes)
       .sort((a, b) => b.vote_count - a.vote_count)
       .slice(0, 12);
-    const pick = pickStable(famous, seed, isUsed);
+    const pick = pickWeighted(famous, seed, (c) => yearWeight(yearOf(c.release_date)));
     if (pick) return movieCard(await getMovie(pick.id));
   }
   return null;
@@ -82,39 +91,103 @@ async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string)
 
 /** A top-billed actor in this movie who hasn't been used yet. */
 async function nextPersonFor(movie: TmdbMovie, used: Set<string>, seed: string): Promise<Card | null> {
-  const isUsed = (c: { id: number }) => used.has(cardKey({ kind: "person", id: c.id }));
   const cast = movie.credits.cast.filter(
-    (c) => c.profile_path && !NOT_A_ROLE.test(c.character ?? ""),
+    (c) =>
+      c.profile_path &&
+      !used.has(cardKey({ kind: "person", id: c.id })) &&
+      !NOT_A_ROLE.test(c.character ?? ""),
   );
   for (const maxOrder of [6, 12, 30]) {
-    const pick = pickStable(cast.filter((c) => c.order < maxOrder), seed, isUsed);
+    const pick = pickWeighted(cast.filter((c) => c.order < maxOrder), seed, () => 1);
     if (pick) return personCard(await getPerson(pick.id));
   }
   return null;
 }
 
-/** Fresh card of the given kind, for dead ends and passes at the start. */
+/**
+ * Weight starter movies so each decade gets an equal share of picks (the '70s half a share),
+ * however many movies of that decade are left.
+ */
+function decadeBalanced(pool: StarterMovie[]) {
+  const perDecade = new Map<number, number>();
+  for (const m of pool) perDecade.set(m.decade, (perDecade.get(m.decade) ?? 0) + 1);
+  return (m: StarterMovie) => yearWeight(m.decade) / perDecade.get(m.decade)!;
+}
+
+/** Fresh card of the given kind, for dead ends, passes, and new chains in challenges. */
 async function freshCard(kind: Card["kind"], used: Set<string>, seed: string): Promise<Card> {
-  const pool = await getStarterPool();
-  const pick = pickStable(pool, seed, (m) => used.has(cardKey({ kind: "movie", id: m.id })))!;
+  const pool = (await getStarterPool()).filter((m) => !used.has(cardKey({ kind: "movie", id: m.id })));
+  const pick = pickWeighted(pool, seed, decadeBalanced(pool))!;
   const movie = await getMovie(pick.id);
   if (kind === "movie") return movieCard(movie);
   used.add(cardKey({ kind: "movie", id: movie.id }));
   return (await nextPersonFor(movie, used, seed)) ?? freshCard(kind, used, seed);
 }
 
-/** dateStr is the player's local date, YYYY-MM-DD, so the puzzle flips at their midnight. */
+type PuzzleRow = { number: number; kind: Card["kind"]; tmdb_id: number; movie_id: number };
+
+/** How many well-known movies someone has acted in: a steadier fame signal than trending popularity. */
+const famousCredits = (p: TmdbPerson) =>
+  p.movie_credits.cast.filter((c) => c.vote_count >= 2000 && !NOT_A_ROLE.test(c.character ?? "")).length;
+
+/**
+ * For actor days: whichever of the top three billed has the most well-known movies (at least 6,
+ * so players have plenty of answers), skipping anyone who already started a day.
+ */
+async function leadActor(movie: TmdbMovie, usedPeople: Set<number>) {
+  const billed = movie.credits.cast.filter(
+    (c) => c.order < 3 && c.profile_path && !usedPeople.has(c.id) && !NOT_A_ROLE.test(c.character ?? ""),
+  );
+  const people = await Promise.all(billed.map((c) => getPerson(c.id)));
+  return people
+    .filter((p) => famousCredits(p) >= 6)
+    .sort((a, b) => famousCredits(b) - famousCredits(a))[0];
+}
+
+/**
+ * The puzzle for a date (YYYY-MM-DD, Eastern). Each day's start is chosen once and saved,
+ * and never reuses a movie or lead actor from an earlier day.
+ */
 export async function dailyStart(dateStr: string): Promise<{ number: number; card: Card }> {
   const number = Math.floor((Date.parse(dateStr) - LAUNCH) / 86_400_000) + 1;
-  const pool = await getStarterPool();
-  const movie = await getMovie(pool[hash(dateStr) % pool.length].id);
+  const supabase = createAdminClient();
+  const toCard = async (row: PuzzleRow) =>
+    row.kind === "person" ? personCard(await getPerson(row.tmdb_id)) : movieCard(await getMovie(row.tmdb_id));
 
-  // Days alternate: odd puzzles start with a movie, even ones with an actor.
-  if (number % 2 === 0) {
-    const lead = movie.credits.cast.find((c) => c.profile_path && !NOT_A_ROLE.test(c.character));
-    if (lead) return { number, card: personCard(await getPerson(lead.id)) };
+  const existing = await supabase.from("daily_puzzles").select("*").eq("number", number).maybeSingle<PuzzleRow>();
+  if (existing.data) return { number, card: await toCard(existing.data) };
+
+  const history = await supabase.from("daily_puzzles").select("kind, tmdb_id, movie_id");
+  if (history.error) throw history.error;
+  const usedMovies = new Set(history.data.map((r) => r.movie_id));
+  const usedPeople = new Set(history.data.filter((r) => r.kind === "person").map((r) => r.tmdb_id));
+
+  // Odd puzzles start with a movie, even ones with an actor.
+  const kind: Card["kind"] = number % 2 === 0 ? "person" : "movie";
+  let pool = (await getStarterPool()).filter((m) => !usedMovies.has(m.id));
+  for (let attempt = 0; attempt < 10 && pool.length > 0; attempt++) {
+    const pick = pickWeighted(pool, `${dateStr}:${attempt}`, decadeBalanced(pool))!;
+    const movie = await getMovie(pick.id);
+    const lead = kind === "person" ? await leadActor(movie, usedPeople) : null;
+    if (kind === "person" && !lead) {
+      pool = pool.filter((m) => m.id !== pick.id);
+      continue;
+    }
+    const row: PuzzleRow = { number, kind, tmdb_id: lead?.id ?? movie.id, movie_id: movie.id };
+    const saved = await supabase
+      .from("daily_puzzles")
+      .insert({ ...row, puzzle_date: dateStr })
+      .select("*")
+      .single<PuzzleRow>();
+    // Two players can hit a brand-new day at once; whoever saved first wins.
+    if (saved.error) {
+      const winner = await supabase.from("daily_puzzles").select("*").eq("number", number).single<PuzzleRow>();
+      if (winner.error) throw winner.error;
+      return { number, card: await toCard(winner.data) };
+    }
+    return { number, card: await toCard(saved.data) };
   }
-  return { number, card: movieCard(movie) };
+  throw new Error("Ran out of unused starting movies");
 }
 
 export type Match =
