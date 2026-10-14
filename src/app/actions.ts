@@ -10,10 +10,12 @@ export async function startDaily(dateStr: string) {
   return dailyStart(dateStr);
 }
 
-export async function submitGuess(card: Card, guess: string, used: string[]) {
-  return checkGuess(card, guess.slice(0, 120), used.slice(0, 200));
+export async function submitGuess(card: Card, guess: string, used: string[], dateStr: string) {
+  if (!DATE.test(dateStr)) throw new Error("Bad date");
+  return checkGuess(card, guess.slice(0, 120), used.slice(0, 200), dateStr);
 }
 
-export async function pass(card: Card, from: Card | null, used: string[]) {
-  return passCard(card, from, used.slice(0, 200));
+export async function pass(card: Card, from: Card | null, used: string[], dateStr: string) {
+  if (!DATE.test(dateStr)) throw new Error("Bad date");
+  return passCard(card, from, used.slice(0, 200), dateStr);
 }

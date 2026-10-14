@@ -78,7 +78,7 @@ export function Game() {
     if (!text || isPending) return;
 
     startTransition(async () => {
-      const result = await submitGuess(card, text, game!.used);
+      const result = await submitGuess(card, text, game!.used, game!.date);
       if (result.outcome === "used") {
         setFeedback({ tone: "info", text: `${result.answer.name} is already in your chain. Try another.` });
         return;
@@ -118,7 +118,7 @@ export function Game() {
   function onPass() {
     if (isPending) return;
     startTransition(async () => {
-      const nextCard = await pass(card, game!.from, game!.used);
+      const nextCard = await pass(card, game!.from, game!.used, game!.date);
       const next = addLetter(game!, "pass");
       setFeedback({ tone: "info", text: `Passed. That's ${WORD[next.letters - 1]}.` });
       setGame(finish({ ...next, card: nextCard, used: [...next.used, cardKey(nextCard)] }));
