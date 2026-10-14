@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { pass, startDaily, submitGuess } from "@/app/actions";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
@@ -155,6 +156,13 @@ export function Game() {
       {showHelp && <HowToPlay onClose={closeHelp} />}
       <div className="relative w-full">
         <Logo size="sm" />
+        <Link
+          href="/challenge"
+          aria-label="Challenge a friend"
+          className="absolute top-0 left-0 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 font-display text-sm tracking-wide text-amber-400 active:bg-white/10"
+        >
+          VS
+        </Link>
         <HelpButton onClick={() => setShowHelp(true)} />
       </div>
       <Letters count={game.letters} />

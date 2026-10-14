@@ -117,28 +117,22 @@ export async function dailyStart(dateStr: string): Promise<{ number: number; car
   return { number, card: movieCard(movie) };
 }
 
-export async function checkGuess(
-  card: Card,
-  guess: string,
-  usedKeys: string[],
-  dateStr: string,
-): Promise<GuessResult> {
+export type Match =
+  | { outcome: "correct"; answer: Card }
+  | { outcome: "wrong" }
+  | { outcome: "used"; answer: Card };
+
+/** Is `guess` a valid answer for `card`? Shared by the daily game and challenges. */
+export async function matchGuess(card: Card, guess: string, used: Set<string>): Promise<Match> {
   const key = nameKey(guess);
-  const used = new Set([...usedKeys, cardKey(card)]);
   if (!key) return { outcome: "wrong" };
 
   if (card.kind === "movie") {
     const movie = await getMovie(card.id);
     const match = movie.credits.cast.find((c) => nameKey(c.name) === key);
     if (!match) return { outcome: "wrong" };
-
-    const person = await getPerson(match.id);
-    const answer = personCard(person);
-    if (used.has(cardKey(answer))) return { outcome: "used", answer };
-    used.add(cardKey(answer));
-    const seed = `${dateStr}:${cardKey(answer)}`;
-    const next = (await nextMovieFor(person, used, seed)) ?? (await freshCard("movie", used, seed));
-    return { outcome: "correct", answer, next };
+    const answer = personCard(await getPerson(match.id));
+    return used.has(cardKey(answer)) ? { outcome: "used", answer } : { outcome: "correct", answer };
   }
 
   const person = await getPerson(card.id);
@@ -150,12 +144,33 @@ export async function checkGuess(
   // Same title can exist twice (remakes); prefer one not yet used.
   const match = matches.find((m) => !used.has(cardKey({ kind: "movie", id: m.id })));
   if (!match) return { outcome: "used", answer: movieCard(await getMovie(matches[0].id)) };
+  return { outcome: "correct", answer: movieCard(await getMovie(match.id)) };
+}
 
-  const movie = await getMovie(match.id);
-  const answer = movieCard(movie);
+/** A well-known starting movie for a new chain (challenges, and after a miss in one). */
+export async function startCard(used: Set<string>, seed: string): Promise<Card> {
+  return freshCard("movie", used, seed);
+}
+
+export async function checkGuess(
+  card: Card,
+  guess: string,
+  usedKeys: string[],
+  dateStr: string,
+): Promise<GuessResult> {
+  const used = new Set([...usedKeys, cardKey(card)]);
+  const result = await matchGuess(card, guess, used);
+  if (result.outcome !== "correct") return result;
+
+  const { answer } = result;
   used.add(cardKey(answer));
   const seed = `${dateStr}:${cardKey(answer)}`;
-  const next = (await nextPersonFor(movie, used, seed)) ?? (await freshCard("person", used, seed));
+  const next =
+    answer.kind === "person"
+      ? ((await nextMovieFor(await getPerson(answer.id), used, seed)) ??
+        (await freshCard("movie", used, seed)))
+      : ((await nextPersonFor(await getMovie(answer.id), used, seed)) ??
+        (await freshCard("person", used, seed)));
   return { outcome: "correct", answer, next };
 }
 

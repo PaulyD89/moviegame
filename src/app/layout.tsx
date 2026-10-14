@@ -14,6 +14,7 @@ const body = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://moviehorsegame.com"),
   title: "Movie Horse — Don't spell M-O-V-I-E",
   description: "Name the actor. Name the movie. Don't spell M-O-V-I-E. A new chain every day.",
   appleWebApp: { capable: true, title: "Movie Horse", statusBarStyle: "black-translucent" },

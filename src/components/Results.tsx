@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import { LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
@@ -131,7 +132,13 @@ export function Results({ game }: { game: SavedGame }) {
       >
         {copied ? "Copied!" : "Share result"}
       </button>
-      <p className="text-sm text-zinc-500">New game tomorrow.</p>
+      <Link
+        href="/challenge"
+        className="-mt-2 flex min-h-12 w-full items-center justify-center rounded-xl border border-amber-400 text-lg font-bold text-amber-400 active:scale-[0.98]"
+      >
+        Challenge a friend
+      </Link>
+      <p className="text-sm text-zinc-500">New daily chain tomorrow.</p>
     </div>
   );
 }
