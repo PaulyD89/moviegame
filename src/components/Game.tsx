@@ -109,9 +109,10 @@ export function Game() {
       }
       if (result.outcome === "wrong") {
         const next = addLetter(game!, "wrong");
+        setGuess("");
         setFeedback({
           tone: "bad",
-          text: `Nope! That's ${WORD[next.letters - 1]}.`,
+          text: `"${text}" — nope! That's ${WORD[next.letters - 1]}.`,
         });
         setMisses((m) => m + 1);
         navigator.vibrate?.(120);
