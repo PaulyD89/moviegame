@@ -111,7 +111,7 @@ export function HowToPlay({ onClose }: { onClose: () => void }) {
         </div>
 
         <p className="mt-4 text-center text-sm leading-snug text-white">
-          Some days start with an actor instead: name a movie they were in. Small typos are OK;
+          Every other day starts with an actor instead: name a movie they were in. Small typos are OK;
           we&apos;ll show you the right spelling. New chain every day.
         </p>
 

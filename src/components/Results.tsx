@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { msUntilNextPuzzle } from "@/lib/daily-clock";
 import { LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
 import { Logo } from "./Logo";
@@ -138,7 +139,7 @@ export function Results({ game }: { game: SavedGame }) {
       >
         Challenge a friend
       </Link>
-      <p className="text-sm text-zinc-500">New daily chain tomorrow.</p>
+      <NextPuzzle />
     </div>
   );
 }
@@ -158,5 +159,30 @@ function Stat({ label, value }: { label: string; value: number }) {
       <div className="text-2xl font-bold">{value}</div>
       <div className="text-xs text-zinc-500">{label}</div>
     </div>
+  );
+}
+
+/** Countdown to the next daily chain (midnight Eastern / 9pm Pacific). */
+function NextPuzzle() {
+  const [left, setLeft] = useState(msUntilNextPuzzle);
+  useEffect(() => {
+    const t = setInterval(() => {
+      const ms = msUntilNextPuzzle();
+      setLeft(ms);
+      // Past midnight Eastern: reload so the new chain appears.
+      if (ms > 86_000_000) window.location.reload();
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+  const s = Math.floor(left / 1000);
+  const hms = [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60]
+    .map((n) => String(n).padStart(2, "0"))
+    .join(":");
+  return (
+    <p className="text-center text-sm text-zinc-300">
+      Next chain in <span className="font-display text-lg tracking-wider text-white">{hms}</span>
+      <br />
+      <span className="text-xs text-zinc-400">New chain daily at midnight ET / 9pm PT</span>
+    </p>
   );
 }

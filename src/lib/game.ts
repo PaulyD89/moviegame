@@ -109,8 +109,8 @@ export async function dailyStart(dateStr: string): Promise<{ number: number; car
   const pool = await getStarterPool();
   const movie = await getMovie(pool[hash(dateStr) % pool.length].id);
 
-  // Every third day starts with an actor instead of a movie.
-  if (number % 3 === 0) {
+  // Days alternate: odd puzzles start with a movie, even ones with an actor.
+  if (number % 2 === 0) {
     const lead = movie.credits.cast.find((c) => c.profile_path && !NOT_A_ROLE.test(c.character));
     if (lead) return { number, card: personCard(await getPerson(lead.id)) };
   }

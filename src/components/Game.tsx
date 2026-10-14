@@ -4,13 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { pass, startDaily, submitGuess } from "@/app/actions";
+import { puzzleDate } from "@/lib/daily-clock";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
 import { HelpButton, HowToPlay, hasSeenHowTo } from "./HowToPlay";
 import { Logo } from "./Logo";
 import { Results } from "./Results";
 import { loadGame, recordResult, saveGame, type SavedGame } from "./storage";
 
-const localDate = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
 
 type Feedback = { tone: "good" | "bad" | "info"; text: string } | null;
 
@@ -26,7 +26,7 @@ export function Game() {
 
   useEffect(() => {
     async function load(): Promise<SavedGame> {
-      const date = localDate();
+      const date = puzzleDate();
       const saved = loadGame(date);
       if (saved) return saved;
       const { number, card } = await startDaily(date);
