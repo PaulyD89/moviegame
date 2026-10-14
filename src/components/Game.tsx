@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { pass, startDaily, submitGuess } from "@/app/actions";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
+import { HelpButton, HowToPlay, hasSeenHowTo } from "./HowToPlay";
 import { Logo } from "./Logo";
 import { Results } from "./Results";
 import { loadGame, recordResult, saveGame, type SavedGame } from "./storage";
@@ -18,6 +19,7 @@ export function Game() {
   const [guess, setGuess] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [misses, setMisses] = useState(0); // re-triggers the shake animation
+  const [showHelp, setShowHelp] = useState(false);
   const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -41,7 +43,10 @@ export function Game() {
       };
     }
     load()
-      .then(setGame)
+      .then((g) => {
+        setGame(g);
+        if (g.status === "playing" && g.events.length === 0 && !hasSeenHowTo()) setShowHelp(true);
+      })
       .catch(() => setError("Couldn't load today's game. Check your connection and try again."));
   }, []);
 
@@ -83,6 +88,12 @@ export function Game() {
       events: [...g.events, event],
       status: letters >= WORD.length ? "lost" : "playing",
     };
+  }
+
+  function closeHelp() {
+    setShowHelp(false);
+    // Reading the rules shouldn't count against your time.
+    if (game!.events.length === 0) setGame({ ...game!, startedAt: Date.now() });
   }
 
   function onSubmit(e: React.FormEvent) {
@@ -140,7 +151,11 @@ export function Game() {
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
-      <Logo size="sm" />
+      {showHelp && <HowToPlay onClose={closeHelp} />}
+      <div className="relative w-full">
+        <Logo size="sm" />
+        <HelpButton onClick={() => setShowHelp(true)} />
+      </div>
       <Letters count={game.letters} />
 
       <Progress links={game.links.length} />
