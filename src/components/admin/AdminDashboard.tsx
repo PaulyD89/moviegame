@@ -63,6 +63,8 @@ export function AdminDashboard() {
         </div>
       </header>
 
+      <ErrorBanner errors={data.errors} now={now || loadedAt} />
+
       <Section title="Live right now">
         <Tile label="Live games" value={data.live_games} hint="someone on screen in the last 30s" big />
         <Tile label="Players on screen" value={data.players_on_screen} hint="in a lobby or game" big />
@@ -134,6 +136,37 @@ export function AdminDashboard() {
         <p className="mt-2 text-xs text-zinc-400">Gold name = whose turn it is. Green dot = on screen now.</p>
       </section>
     </div>
+  );
+}
+
+/** Red when anything broke in the last 24 hours, with the latest errors; green otherwise. */
+function ErrorBanner({ errors, now }: { errors: AdminStats["errors"]; now: number }) {
+  if (errors.count24h === 0) {
+    return (
+      <p className="rounded-xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300 ring-1 ring-emerald-500/40">
+        ✓ No errors in the last 24 hours
+      </p>
+    );
+  }
+  return (
+    <section className="rounded-xl bg-red-500/10 p-4 ring-1 ring-red-500/60" role="alert">
+      <h2 className="font-semibold text-red-300">
+        ⚠️ {errors.count24h} {errors.count24h === 1 ? "error" : "errors"} in the last 24 hours
+      </h2>
+      <ul className="mt-2 space-y-2 text-sm">
+        {errors.recent.map((e, i) => (
+          <li key={i} className="rounded-lg bg-black/30 px-3 py-2">
+            <div className="flex flex-wrap gap-x-3 text-xs text-zinc-400">
+              <span>{ago(e.at, now)}</span>
+              <span className="uppercase tracking-wider">{e.source}</span>
+              {e.path && <span className="break-all">{e.path}</span>}
+            </div>
+            <div className="mt-0.5 break-words text-zinc-100">{e.message}</div>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-zinc-400">Send me these and I&apos;ll dig in.</p>
+    </section>
   );
 }
 

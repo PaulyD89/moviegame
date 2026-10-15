@@ -38,6 +38,8 @@ type Row = {
   started_at: string;
   finished_at: string | null;
   moves: number;
+  won: boolean | null;
+  letters: number | null;
 };
 
 const db = () => createAdminClient();
@@ -49,7 +51,7 @@ function freshState(card: Card): DailyState {
 async function loadRow(number: number, playerId: string) {
   const { data, error } = await db()
     .from("daily_plays")
-    .select("puzzle_number, player_id, state, card_shown_at, started_at, finished_at, moves")
+    .select("puzzle_number, player_id, state, card_shown_at, started_at, finished_at, moves, won, letters")
     .eq("puzzle_number", number)
     .eq("player_id", playerId)
     .maybeSingle<Row>();
@@ -115,8 +117,16 @@ export async function openDaily(date: string, playerId: string, legacy: DailySta
     return sync(number, row.state, row.card_shown_at);
   }
 
-  // A row from before server play: finished ones stay on the phone as they were.
-  if (row.finished_at) return null;
+  // A game finished before server play (phones that still have it show their own copy).
+  // Show the bare result; the chain itself wasn't kept back then.
+  if (row.finished_at) {
+    const state: DailyState = {
+      ...freshState(card),
+      status: row.won ? "won" : "lost",
+      letters: row.letters ?? 0,
+    };
+    return sync(number, state, now);
+  }
   const carried = legacy ? sanitizeLegacy(legacy, card) : null;
   const state = carried && carried.events.length > 0 ? carried : freshState(card);
   await db()

@@ -155,14 +155,16 @@ export function Results({ game }: { game: SavedGame }) {
         ))}
       </ol>
 
-      <SpeedSummary
-        fast={pts.speed}
-        links={game.links.length}
-        base={pts.base}
-        total={pts.total}
-        perfectTime={perfect && ms !== null ? formatTime(ms) : null}
-        personalBest={personalBest}
-      />
+      {typeof game.durationMs === "number" && (
+        <SpeedSummary
+          fast={pts.speed}
+          links={game.links.length}
+          base={pts.base}
+          total={pts.total}
+          perfectTime={perfect && ms !== null ? formatTime(ms) : null}
+          personalBest={personalBest}
+        />
+      )}
 
       <HowYouCompare number={game.number} />
 

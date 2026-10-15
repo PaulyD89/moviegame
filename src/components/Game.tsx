@@ -53,9 +53,7 @@ export function Game() {
     if (saved && !saved.cardShownAt && saved.status !== "playing") return saved;
     const legacy = saved && !saved.cardShownAt && saved.status === "playing" ? saved : null;
     const synced = await openToday(date, legacy);
-    // null: finished on this phone before the server kept games; keep that result.
-    if (!synced) return saved;
-    return fromServer(date, synced);
+    return synced ? fromServer(date, synced) : saved;
   }, []);
 
   useEffect(() => {

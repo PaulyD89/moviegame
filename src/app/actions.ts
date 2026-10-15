@@ -20,7 +20,7 @@ function checkDate(dateStr: string) {
 
 /**
  * Today's game as the server keeps it. `legacy` is a game this phone had in progress from
- * before the server kept games (carried over once, unranked). Null = finished before then.
+ * before the server kept games (carried over once, unranked).
  */
 export async function openToday(dateStr: string, legacy: DailyState | null) {
   checkDate(dateStr);

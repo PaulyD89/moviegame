@@ -10,6 +10,7 @@ const LIMITS = {
   guess: { windowSec: 60, perPlayer: 20, perIp: 90 }, // guesses and passes, daily and challenge
   create: { windowSec: 3600, perPlayer: 15, perIp: 40 }, // new challenges and rematches
   code: { windowSec: 60, perPlayer: 15, perIp: 30 }, // join-code lookups (no guessing codes)
+  report: { windowSec: 3600, perPlayer: 10, perIp: 30 }, // phone error reports
 } as const;
 
 export type LimitName = keyof typeof LIMITS;

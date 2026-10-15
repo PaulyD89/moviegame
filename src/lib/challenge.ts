@@ -1,6 +1,7 @@
 import "server-only";
 import { after } from "next/server";
 import { matchGuess, startCard } from "./game";
+import { logError } from "./errors";
 import { notifyPlayers } from "./push";
 import { createAdminClient } from "./supabase/admin";
 import {
@@ -69,7 +70,7 @@ function notifyLater(players: PlayerRow[], title: string, body: string, challeng
   if (playerIds.length === 0) return;
   after(() =>
     notifyPlayers(playerIds, { title, body, url: `/c/${challengeId}`, tag: `challenge-${challengeId}` }).catch(
-      (e) => console.error("push failed", e),
+      (e) => logError("server", `Push failed: ${e instanceof Error ? e.message : String(e)}`, `challenge ${challengeId}`),
     ),
   );
 }

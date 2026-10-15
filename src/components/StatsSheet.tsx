@@ -91,15 +91,14 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
       <h3 className="text-xs uppercase tracking-widest text-amber-400">Rank</h3>
       {rank === undefined ? (
         <p className="mt-2 h-14 text-zinc-400">Loading…</p>
-      ) : rank?.rank ? (
-        <>
-          <div className="mt-1 font-display text-5xl tracking-wide text-white">
-            #{rank.rank.toLocaleString()}
-          </div>
-          <p className="text-sm text-zinc-300">
-            <b className="text-white">{rank.points.toLocaleString()}</b> total points
-          </p>
-        </>
+      ) : rank?.allTime.rank ? (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <RankTile
+            label={new Date().toLocaleString("en-US", { month: "long", timeZone: "America/New_York" })}
+            standing={rank.month}
+          />
+          <RankTile label="All time" standing={rank.allTime} />
+        </div>
       ) : (
         <p className="mt-2 text-sm text-zinc-300">
           {rank === null ? "Couldn't load your rank right now." : "Finish a daily Movie Chain to get ranked."}
@@ -122,11 +121,26 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
           </ul>
           <p className="mt-2 text-xs text-zinc-400">
             Only the daily counts, since everyone plays the same puzzle once a day. Challenge wins show in
-            your stats below.
+            your stats below. The monthly rank starts over on the 1st.
           </p>
         </div>
       )}
     </section>
+  );
+}
+
+/** One rank: the place, then points. A month with no games yet shows a dash. */
+function RankTile({ label, standing }: { label: string; standing: GlobalRank["month"] }) {
+  return (
+    <div className="rounded-xl bg-white/5 px-2 py-3">
+      <div className="text-xs uppercase tracking-wider text-zinc-300">{label}</div>
+      <div className="mt-1 font-display text-4xl tracking-wide text-white">
+        {standing.rank ? `#${standing.rank.toLocaleString()}` : "–"}
+      </div>
+      <div className="text-xs text-zinc-300">
+        <b className="text-white">{standing.points.toLocaleString()}</b> points
+      </div>
+    </div>
   );
 }
 

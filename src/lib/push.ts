@@ -10,7 +10,7 @@ export type PushPayload = {
   tag?: string;
 };
 
-type SubscriptionRow = { endpoint: string; p256dh: string; auth: string };
+export type SubscriptionRow = { endpoint: string; p256dh: string; auth: string };
 
 let configured = false;
 function configure() {
@@ -52,7 +52,8 @@ export async function subscriptionStatus(endpoint: string) {
   return data;
 }
 
-async function deliver(subs: SubscriptionRow[], payload: PushPayload) {
+/** Send one notification to these devices; drops subscriptions the browser has retired. */
+export async function deliver(subs: SubscriptionRow[], payload: PushPayload) {
   if (subs.length === 0) return 0;
   configure();
   const body = JSON.stringify(payload);

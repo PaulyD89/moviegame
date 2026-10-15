@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Anton, Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { ErrorReporter } from "@/components/ErrorReporter";
 import { OpenFromNotification } from "@/components/push/OpenFromNotification";
 import "./globals.css";
 
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-dvh font-sans">
         {children}
         <OpenFromNotification />
+        <ErrorReporter />
         <Analytics />
       </body>
     </html>

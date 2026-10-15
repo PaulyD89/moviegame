@@ -55,6 +55,7 @@ export type AdminStats = {
   daily_last7: { number: number; started: number; finished: number }[];
   push_devices: number;
   push_daily: number;
+  errors: { count24h: number; recent: { at: string; source: string; path: string | null; message: string }[] };
   activeGames: {
     code: string | null;
     status: "lobby" | "playing";
@@ -67,7 +68,7 @@ export async function getAdminStats(): Promise<AdminStats> {
   const supabase = createAdminClient();
   const today = puzzleNumber(puzzleDate());
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
-  const [stats, games] = await Promise.all([
+  const [stats, games, errorCount, recentErrors] = await Promise.all([
     supabase.rpc("admin_stats", { today_number: today }),
     supabase
       .from("challenges")
@@ -76,6 +77,8 @@ export async function getAdminStats(): Promise<AdminStats> {
       .gte("updated_at", since)
       .order("updated_at", { ascending: false })
       .limit(25),
+    supabase.from("app_errors").select("id", { count: "exact", head: true }).gte("at", since),
+    supabase.from("app_errors").select("at, source, path, message").order("at", { ascending: false }).limit(10),
   ]);
   if (stats.error) throw stats.error;
   const now = Date.now();
@@ -87,7 +90,11 @@ export async function getAdminStats(): Promise<AdminStats> {
     challenge_players: { nickname: string; letters: number; seat: number; last_seen: string }[];
   };
   return {
-    ...(stats.data as Omit<AdminStats, "puzzleNumber" | "activeGames">),
+    ...(stats.data as Omit<AdminStats, "puzzleNumber" | "activeGames" | "errors">),
+    errors: {
+      count24h: errorCount.count ?? 0,
+      recent: (recentErrors.data ?? []) as AdminStats["errors"]["recent"],
+    },
     puzzleNumber: today,
     activeGames: ((games.data ?? []) as GameRow[]).map((g) => ({
       code: g.code,
