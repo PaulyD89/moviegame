@@ -204,7 +204,7 @@ export function Game() {
       <Letters count={game.letters} />
 
       <Progress links={game.links.length} />
-      <SpeedClock key={`${cardKey(card)}-${game.links.length}`} shownAt={game.cardShownAt} fastSoFar={game.fastLinks ?? 0} />
+      <SpeedClock key={`speed-${cardKey(card)}-${game.links.length}`} shownAt={game.cardShownAt} fastSoFar={game.fastLinks ?? 0} />
 
       <figure
         key={`${cardKey(card)}-${misses}`}
