@@ -11,11 +11,12 @@ import { loadNickname } from "./challenge/nickname";
 import { HelpButton, HowToPlay, hasSeenHowTo } from "./HowToPlay";
 import { StatsButton, StatsSheet } from "./StatsSheet";
 import { Logo } from "./Logo";
+import { UsedWarning } from "./UsedWarning";
 import { Results } from "./Results";
 import { currentStreak, loadGame, loadStats, recordResult, saveGame, type SavedGame } from "./storage";
 
 
-type Feedback = { tone: "good" | "bad" | "info"; text: string } | null;
+type Feedback = { tone: "good" | "bad" | "info" | "used"; text: string; id?: number } | null;
 
 export function Game() {
   const [game, setGame] = useState<SavedGame | null>(null);
@@ -34,7 +35,6 @@ export function Game() {
       const saved = loadGame(date);
       if (saved) return saved;
       const { number, card } = await startDaily(date);
-      dailyStarted(number).catch(() => {}); // anonymous play count; never blocks the game
       return {
         date,
         number,
@@ -109,15 +109,23 @@ export function Game() {
     if (game!.events.length === 0) setGame({ ...game!, startedAt: Date.now() });
   }
 
+  /** Count a play once someone actually plays (bots and link previews never do). */
+  function countStart() {
+    if (game!.events.length === 0) dailyStarted(game!.number).catch(() => {});
+  }
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const text = guess.trim();
     if (!text || isPending) return;
+    countStart();
 
     startTransition(async () => {
       const result = await submitGuess(card, text, game!.used, game!.date);
       if (result.outcome === "used") {
-        setFeedback({ tone: "info", text: `${result.answer.name} is already in your chain. Try another.` });
+        setGuess("");
+        setFeedback({ tone: "used", text: result.answer.name, id: Date.now() });
+        inputRef.current?.focus();
         return;
       }
       if (result.outcome === "wrong") {
@@ -155,6 +163,7 @@ export function Game() {
 
   function onPass() {
     if (isPending) return;
+    countStart();
     startTransition(async () => {
       const nextCard = await pass(card, game!.from, game!.used, game!.date);
       const next = addLetter(game!, "pass");
@@ -253,18 +262,22 @@ export function Game() {
         </div>
       </form>
 
-      <p
-        aria-live="polite"
-        className={`min-h-6 text-center text-sm ${
-          feedback?.tone === "good"
-            ? "text-emerald-400"
-            : feedback?.tone === "bad"
-              ? "text-red-400"
-              : "text-zinc-400"
-        }`}
-      >
-        {feedback?.text}
-      </p>
+      {feedback?.tone === "used" ? (
+        <UsedWarning key={feedback.id} name={feedback.text} />
+      ) : (
+        <p
+          aria-live="polite"
+          className={`min-h-6 text-center text-sm ${
+            feedback?.tone === "good"
+              ? "text-emerald-400"
+              : feedback?.tone === "bad"
+                ? "text-red-400"
+                : "text-zinc-400"
+          }`}
+        >
+          {feedback?.text}
+        </p>
+      )}
     </div>
   );
 }

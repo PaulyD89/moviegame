@@ -17,6 +17,7 @@ import { WORD, type Card } from "@/lib/types";
 import { Logo } from "../Logo";
 import { NotifyButton } from "../push/NotifyButton";
 import { recordChallenge } from "../storage";
+import { UsedWarning } from "../UsedWarning";
 import { rememberGame } from "./myGames";
 import { loadNickname, saveNickname } from "./nickname";
 
@@ -344,20 +345,23 @@ function IPhoneJoinHint({ code }: { code: string | null }) {
 function TurnForm({ state, reload }: { state: ChallengeView; reload: () => Promise<void> }) {
   const [guess, setGuess] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [used, setUsed] = useState<{ name: string; id: number } | null>(null);
   const [isPending, startTransition] = useTransition();
   const card = state.card!;
 
   function send(text: string | null) {
     if (isPending) return;
+    setUsed(null);
     startTransition(async () => {
       const result = await move(state.id, state.version, text);
       if (!result.ok) {
-        setFeedback(
-          result.reason === "used"
-            ? `${result.answer.name} is already in the chain. Try another.`
-            : "The game moved on. Refreshing…",
-        );
-        if (result.reason !== "used") await reload();
+        if (result.reason === "used") {
+          setGuess("");
+          setUsed({ name: result.answer.name, id: Date.now() });
+          return;
+        }
+        setFeedback("The game moved on. Refreshing…");
+        await reload();
         return;
       }
       setGuess("");
@@ -409,9 +413,13 @@ function TurnForm({ state, reload }: { state: ChallengeView; reload: () => Promi
           {isPending ? "Checking…" : "Guess"}
         </button>
       </div>
-      <p className="min-h-5 text-center text-sm text-zinc-400" aria-live="polite">
-        {feedback ?? "One shot per turn. Miss or pass and you get a letter."}
-      </p>
+      {used ? (
+        <UsedWarning key={used.id} name={used.name} />
+      ) : (
+        <p className="min-h-5 text-center text-sm text-zinc-400" aria-live="polite">
+          {feedback ?? "One shot per turn. Miss or pass and you get a letter."}
+        </p>
+      )}
     </form>
   );
 }
