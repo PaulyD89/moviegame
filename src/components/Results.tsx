@@ -123,21 +123,46 @@ export function Results({ game }: { game: SavedGame }) {
     }
   }
 
+  // One line instead of the old speed box: links · fast · time · points.
+  const resultLine = [
+    `${game.links.length}/${LINKS_TO_WIN} links`,
+    ...(typeof game.durationMs === "number" ? [`⚡ ${pts.speed} fast`] : []),
+    ...(ms !== null ? [formatTime(ms)] : []),
+    ...(typeof game.durationMs === "number" ? [`${pts.total} pts`] : []),
+  ].join(" · ");
+
   return (
-    <div className="flex w-full flex-col items-center gap-6">
-      <Logo size="lg" />
-      <div className="-mt-2 text-center">
-        <h2 className="font-display text-5xl tracking-wide text-amber-400">
-          {won ? "That's a wrap!" : "M-O-V-I-E"}
-        </h2>
-        <p className="mt-1 text-zinc-300">
-          {won
-            ? `You made all ${LINKS_TO_WIN} links.`
-            : `You made ${game.links.length} of ${LINKS_TO_WIN} links before spelling it.`}
-        </p>
-      </div>
+    <div className="flex w-full flex-col items-center gap-5">
+      <Logo size="md" />
+      <h2 className="-mt-2 text-center font-display text-[2.55rem] leading-tight tracking-wide text-amber-400">
+        {won ? (game.letters === 0 ? "Perfect game!" : "That's a wrap!") : "M-O-V-I-E"}
+      </h2>
 
       <Letters count={game.letters} />
+
+      <div className="-mt-1 flex flex-col items-center gap-1 text-center">
+        <p className="font-display text-xl tracking-wide text-white">{resultLine}</p>
+        {perfect && ms !== null && (
+          <p className="text-sm font-semibold text-amber-300">
+            {personalBest ? "🏁 New record! " : "🏁 "}Perfect game in {formatTime(ms)}
+          </p>
+        )}
+      </div>
+
+      <div className="grid w-full grid-cols-[1.3fr_1fr] gap-2">
+        <button
+          onClick={share}
+          className="min-h-10 rounded-lg bg-amber-400 px-3 text-sm font-bold text-black active:scale-[0.98]"
+        >
+          {copied ? "Copied!" : "Share result"}
+        </button>
+        <Link
+          href="/challenge"
+          className="flex min-h-10 items-center justify-center rounded-lg border border-amber-400 px-3 text-sm font-bold text-amber-400 active:scale-[0.98]"
+        >
+          Play with friends
+        </Link>
+      </div>
 
       <ol className="-mx-4 flex w-[calc(100%+2rem)] snap-x gap-3 overflow-x-auto px-4 pb-2">
         {chain.map((node, i) => (
@@ -165,28 +190,15 @@ export function Results({ game }: { game: SavedGame }) {
         ))}
       </ol>
 
-      {typeof game.durationMs === "number" && (
-        <SpeedSummary
-          fast={pts.speed}
-          links={game.links.length}
-          base={pts.base}
-          total={pts.total}
-          perfectTime={perfect && ms !== null ? formatTime(ms) : null}
-          personalBest={personalBest}
-        />
-      )}
-
+      <TodayRank number={game.number} />
       <HowYouCompare number={game.number} />
 
-      <dl className="grid w-full grid-cols-2 gap-3 text-sm">
-        {decades.length > 0 && (
-          <Insight label="Decades covered" value={decades.map((d) => `${d}s`).join(" · ")} />
-        )}
-        {ms !== null && <Insight label="Time" value={formatTime(ms)} />}
-        {oldest && <Insight label="Oldest film" value={`${oldest.name} (${oldest.year})`} />}
-        {newest && newest !== oldest && <Insight label="Newest film" value={`${newest.name} (${newest.year})`} />}
-        {deepCut && <Insight label="Deep cut" value={deepCut.name} wide />}
-      </dl>
+      <div className="flex w-full flex-wrap gap-1.5">
+        {decades.length > 0 && <Chip label="Decades" value={decades.map((d) => `${String(d).slice(2)}s`).join(" · ")} />}
+        {oldest && <Chip label="Oldest" value={oldest.name} />}
+        {newest && newest !== oldest && <Chip label="Newest" value={newest.name} />}
+        {deepCut && <Chip label="Deep cut" value={deepCut.name} />}
+      </div>
 
       {stats.played > 0 && (
         <div className="grid w-full grid-cols-4 gap-2 text-center">
@@ -196,30 +208,27 @@ export function Results({ game }: { game: SavedGame }) {
           <Stat label="Best" value={stats.maxStreak} />
         </div>
       )}
-      <button onClick={() => setShowStats(true)} className="-mt-3 text-sm text-zinc-200 underline">
+      <button onClick={() => setShowStats(true)} className="-mt-3 min-h-11 px-3 text-sm text-zinc-200 underline">
         See all your stats
       </button>
       {showStats && (
         <StatsSheet todayNumber={game.number} todayLinks={game.links.length} onClose={() => setShowStats(false)} />
       )}
 
-      <button
-        onClick={share}
-        className="w-full rounded-xl bg-amber-400 py-4 text-lg font-bold text-black active:scale-[0.98]"
-      >
-        {copied ? "Copied!" : "Share result"}
-      </button>
-      <ReminderNudge />
-      <Link
-        href="/challenge"
-        className="-mt-2 flex min-h-12 w-full items-center justify-center rounded-xl border border-amber-400 text-lg font-bold text-amber-400 active:scale-[0.98]"
-      >
-        Play with friends
-      </Link>
-      <TodayRank number={game.number} />
       <NextPuzzle />
+      <ReminderNudge />
       <NotifyButton mode="daily" />
     </div>
+  );
+}
+
+/** A small fact about the chain, in a row of chips. */
+function Chip({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="min-w-0 max-w-full truncate rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-200">
+      <span className="mr-1 text-zinc-500">{label}</span>
+      {value}
+    </span>
   );
 }
 
@@ -286,53 +295,6 @@ function HowYouCompare({ number }: { number: number }) {
   );
 }
 
-/** Speed bonus and today's ranking points, plus a perfect game's time. */
-function SpeedSummary({
-  fast,
-  links,
-  base,
-  total,
-  perfectTime,
-  personalBest,
-}: {
-  fast: number;
-  links: number;
-  base: number;
-  total: number;
-  perfectTime: string | null;
-  personalBest: boolean;
-}) {
-  return (
-    <section className="w-full rounded-2xl border border-amber-400/50 p-4 text-center">
-      <div className="text-xs uppercase tracking-widest text-amber-400">Speed bonus</div>
-      <div className="mt-1 font-display text-4xl tracking-wide text-white">⚡ +{fast}</div>
-      <p className="text-sm text-zinc-300">
-        {fast} of {links} {links === 1 ? "link" : "links"} answered in under 20 seconds
-      </p>
-      <p className="mt-2 text-sm text-zinc-200">
-        Today&apos;s points: <b className="text-white">{total}</b>{" "}
-        <span className="text-zinc-400">
-          ({base} for the game + {fast} speed)
-        </span>
-      </p>
-      {perfectTime && (
-        <p className="mt-2 text-sm font-semibold text-amber-300">
-          {personalBest ? "🏁 New record! " : "🏁 "}Perfect game in {perfectTime}
-        </p>
-      )}
-    </section>
-  );
-}
-
-function Insight({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
-  return (
-    <div className={`rounded-lg bg-white/5 p-3 ${wide ? "col-span-2" : ""}`}>
-      <dt className="text-xs uppercase tracking-wider text-zinc-500">{label}</dt>
-      <dd className="mt-0.5 font-medium">{value}</dd>
-    </div>
-  );
-}
-
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div>
@@ -386,7 +348,7 @@ function TodayRank({ number }: { number: number }) {
   }, [number]);
   if (!rank || rank.others < 3) return null;
   return (
-    <p className="text-center text-white">
+    <p className="-mb-2 w-full rounded-xl bg-amber-400/10 px-4 py-2.5 text-center text-sm text-white ring-1 ring-amber-400/40">
       🏅 You beat <b className="text-amber-400">{rank.percentBeat}%</b> of players today
     </p>
   );

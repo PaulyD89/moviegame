@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 
-/** Compact during play so the poster and input fit; large on the results screen. Links home. */
-export function Logo({ size }: { size: "sm" | "lg" }) {
+/** Compact during play so the poster and input fit; larger elsewhere. Links home. */
+export function Logo({ size }: { size: "sm" | "md" | "lg" }) {
   const large = size === "lg";
+  const width = size === "lg" ? "w-72" : size === "md" ? "w-54" : "w-36";
   return (
     <h1 className="flex justify-center">
       <Link
@@ -17,7 +18,7 @@ export function Logo({ size }: { size: "sm" | "lg" }) {
           width={large ? 960 : 480}
           height={large ? 640 : 320}
           priority
-          className={`h-auto drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)] ${large ? "w-72" : "w-36"}`}
+          className={`h-auto drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)] ${width}`}
         />
       </Link>
     </h1>
