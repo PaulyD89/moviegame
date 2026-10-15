@@ -12,6 +12,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <Link href="/privacy" className="underline-offset-2 hover:underline">
             Privacy
           </Link>
+          <Link href="/terms" className="underline-offset-2 hover:underline">
+            Terms
+          </Link>
           <a href="mailto:moviehorsegame@gmail.com" className="underline-offset-2 hover:underline">
             Contact
           </a>
