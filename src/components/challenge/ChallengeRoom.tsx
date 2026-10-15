@@ -325,6 +325,7 @@ function Playing({
       {state.turnDeadline && (
         <ShotClock deadline={state.turnDeadline} offset={offset} key={state.version} />
       )}
+      <ClockNote state={state} />
       <CardArt card={card} key={`${card.kind}:${card.id}`} />
 
       {myTurn ? (
@@ -456,6 +457,30 @@ function TurnForm({ state, reload }: { state: ChallengeView; reload: () => Promi
         </p>
       )}
     </form>
+  );
+}
+
+/** Says why this turn is or isn't timed, since the clock otherwise seems to come and go. */
+function ClockNote({ state }: { state: ChallengeView }) {
+  if (state.turnDeadline) {
+    return (
+      <p className="-mt-2 text-center text-xs text-zinc-400">
+        ⏱ Everyone&apos;s here, so turns are timed (30s). Leaving won&apos;t stop the clock.
+      </p>
+    );
+  }
+  const away = state.players.filter((p) => !p.out && !p.live).map((p) => (p.isYou ? "You" : p.nickname));
+  const who =
+    away.length === 0
+      ? null
+      : away.length === 1
+        ? `${away[0]} ${away[0] === "You" ? "are" : "is"} away`
+        : `${away.slice(0, -1).join(", ")} and ${away.at(-1)} are away`;
+  return (
+    <p className="text-center text-xs text-zinc-400">
+      🕰 Take your time: {who ? `${who}, so this turn isn't timed.` : "this turn isn't timed."} The clock comes back
+      when everyone&apos;s here at the start of a turn.
+    </p>
   );
 }
 
