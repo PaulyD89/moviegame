@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { myGames } from "@/app/challenge/actions";
-import { loadGameIds } from "./myGames";
+import { loadGameIds, recordFinished } from "./myGames";
 
 /** The VS link on the daily screen, with a badge counting challenges waiting on you. */
 export function VsButton() {
@@ -15,7 +15,10 @@ export function VsButton() {
       const ids = loadGameIds();
       if (document.hidden || ids.length === 0) return;
       myGames(ids)
-        .then((games) => active && setWaiting(games.filter((g) => g.yourTurn).length))
+        .then((games) => {
+          recordFinished(games); // games that ended while you were away still count in your stats
+          if (active) setWaiting(games.filter((g) => g.yourTurn).length);
+        })
         .catch(() => {});
     }
     check();

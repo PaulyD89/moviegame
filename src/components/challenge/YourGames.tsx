@@ -3,19 +3,21 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { myGames } from "@/app/challenge/actions";
-import type { ChallengeSummary } from "@/lib/challenge";
-import { keepGames, loadGameIds } from "./myGames";
+import { keepGames, loadGameIds, recordFinished, type ListedGame } from "./myGames";
 
 /** Games this device has joined, with whose turn it is. */
 export function YourGames() {
-  const [games, setGames] = useState<ChallengeSummary[]>([]);
+  const [games, setGames] = useState<ListedGame[]>([]);
 
   useEffect(() => {
     const ids = loadGameIds();
     if (ids.length)
       myGames(ids)
         // Rows that need you (your turn, an unseen win) float to the top.
-        .then((all) => setGames(keepGames(all).sort((a, b) => Number(status(b).hot) - Number(status(a).hot))))
+        .then((all) => {
+          recordFinished(all);
+          setGames(keepGames(all).sort((a, b) => Number(status(b).hot) - Number(status(a).hot)));
+        })
         .catch(() => {});
   }, []);
 
@@ -50,9 +52,11 @@ export function YourGames() {
 }
 
 /** Right-hand label; "hot" rows need you (your turn, or a result you haven't seen). */
-function status(g: ChallengeSummary) {
+function status(g: ListedGame) {
   if (g.status === "lobby") return { label: g.others.length ? "In lobby" : "Invite friends", hot: false };
   if (g.status === "finished")
-    return { label: g.youWon ? "🏆 You won! See result" : `${g.winner ?? "Someone"} won · See result`, hot: g.youWon };
+    return g.youWon
+      ? { label: g.seen ? "🏆 You won · Share" : "🏆 You won! See result", hot: !g.seen }
+      : { label: `${g.winner ?? "Someone"} won · See result`, hot: false };
   return { label: g.yourTurn ? "Your turn!" : `${g.turnName}'s turn`, hot: g.yourTurn };
 }
