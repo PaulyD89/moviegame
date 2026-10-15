@@ -2,6 +2,8 @@ import type { Card } from "./types";
 
 export const MAX_PLAYERS = 6;
 export const SHOT_CLOCK_MS = 30_000;
+/** A take-your-time turn nobody takes for this long is skipped with a letter. */
+export const STALL_MS = 24 * 60 * 60 * 1000;
 
 export type ChallengePlayer = {
   seat: number;
@@ -19,9 +21,11 @@ export type ChallengeMove = {
   nickname: string;
   prompt: Card;
   guess: string | null;
-  outcome: "correct" | "wrong" | "pass" | "timeout";
+  outcome: MoveOutcome;
   answer: Card | null;
 };
+
+export type MoveOutcome = "correct" | "wrong" | "pass" | "timeout" | "skip";
 
 /** Everything a phone needs to draw a challenge, from that player's point of view. */
 export type ChallengeView = {
@@ -45,4 +49,4 @@ export type ChallengeView = {
 export type MoveResult =
   | { ok: true; outcome: "correct" | "wrong" | "pass"; answer?: Card }
   | { ok: false; reason: "used"; answer: Card }
-  | { ok: false; reason: "not-your-turn" | "stale" | "not-playing" };
+  | { ok: false; reason: "not-your-turn" | "stale" | "not-playing" | "slow" };

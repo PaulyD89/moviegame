@@ -34,9 +34,10 @@ export function NewChallenge() {
     startTransition(async () => {
       try {
         saveNickname(nickname);
-        const id = await create(nickname);
+        const result = await create(nickname);
+        if (!result.ok) return setError("You've started a lot of games. Try again in a little while.");
         track("challenge_created");
-        router.push(`/c/${id}`);
+        router.push(`/c/${result.id}`);
       } catch {
         setError("Couldn't create the challenge. Try again.");
       }

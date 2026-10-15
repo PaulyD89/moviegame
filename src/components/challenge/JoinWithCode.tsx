@@ -16,9 +16,9 @@ export function JoinWithCode() {
         e.preventDefault();
         if (code.length < 5) return setError("Codes are 5 letters and numbers.");
         startTransition(async () => {
-          const id = await lookupCode(code);
+          const { id, slow } = await lookupCode(code);
           if (id) router.push(`/c/${id}`);
-          else setError("No game with that code.");
+          else setError(slow ? "Too many tries. Wait a minute and try again." : "No game with that code.");
         });
       }}
       className="flex w-full flex-col gap-2"

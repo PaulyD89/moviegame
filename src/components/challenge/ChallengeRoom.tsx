@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { join, move, rematch, start, view } from "@/app/challenge/actions";
+import { join, kick, move, rematch, start, view } from "@/app/challenge/actions";
 import {
   MAX_PLAYERS,
   SHOT_CLOCK_MS,
@@ -42,14 +42,21 @@ export function ChallengeRoom({ id }: { id: string }) {
         // Network blip; the next poll will catch up.
       }
     }
+    // Leaving the screen tells the server right away, so turn alerts start again.
+    // (While you're watching, the game shows moves itself and skips the notification.)
+    const away = () => navigator.sendBeacon?.(`/api/challenge/${id}/away`);
+    const onVisibility = () => (document.hidden ? away() : tick());
     refresh.current = tick;
     tick();
     const timer = setInterval(tick, POLL_MS);
-    document.addEventListener("visibilitychange", tick);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", away);
     return () => {
       active = false;
       clearInterval(timer);
-      document.removeEventListener("visibilitychange", tick);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", away);
+      away();
     };
   }, [id]);
 
@@ -128,7 +135,25 @@ function Lobby({ state, reload }: { state: ChallengeView; reload: () => Promise<
               {p.nickname}
               {p.isYou && <span className="text-xs text-zinc-500">(you)</span>}
             </span>
-            {p.isHost && <span className="text-xs uppercase tracking-wider text-amber-400">Host</span>}
+            {p.isHost ? (
+              <span className="text-xs uppercase tracking-wider text-amber-400">Host</span>
+            ) : (
+              state.youAreHost && (
+                <button
+                  disabled={isPending}
+                  onClick={() =>
+                    startTransition(async () => {
+                      if (!(await kick(state.id, p.seat))) setError(`Couldn't remove ${p.nickname}.`);
+                      await reload();
+                    })
+                  }
+                  aria-label={`Remove ${p.nickname}`}
+                  className="-my-2 -mr-2 flex h-11 items-center rounded-lg px-3 text-sm text-zinc-400 active:bg-white/10"
+                >
+                  Remove
+                </button>
+              )
+            )}
           </li>
         ))}
       </ul>
@@ -309,6 +334,7 @@ function Playing({
             <>
               <p className="mt-1 text-sm text-zinc-500">
                 They&apos;re not on the screen right now. The game is saved; give them a nudge.
+                {!state.turnDeadline && " If they don't play within a day, they're skipped and get a letter."}
               </p>
               <div className="mt-3">
                 <InviteButton host={me?.nickname ?? "A friend"} code={state.code} label={`Nudge ${current.nickname}`} />
@@ -360,6 +386,7 @@ function TurnForm({ state, reload }: { state: ChallengeView; reload: () => Promi
           setUsed({ name: result.answer.name, id: Date.now() });
           return;
         }
+        if (result.reason === "slow") return setFeedback("Whoa, slow down a sec. Try again in a moment.");
         setFeedback("The game moved on. Refreshing…");
         await reload();
         return;
@@ -505,6 +532,8 @@ function describe(m: ChallengeMove) {
       return { tone: "text-zinc-400", text: `${m.nickname} passed and gets a letter` };
     case "timeout":
       return { tone: "text-red-400", text: `${m.nickname} ran out of time and gets a letter` };
+    case "skip":
+      return { tone: "text-red-400", text: `${m.nickname} didn't play for a day, got skipped and gets a letter` };
   }
 }
 

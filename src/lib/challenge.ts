@@ -6,7 +6,9 @@ import { createAdminClient } from "./supabase/admin";
 import {
   MAX_PLAYERS,
   SHOT_CLOCK_MS,
+  STALL_MS,
   type ChallengeView,
+  type MoveOutcome,
   type MoveResult,
 } from "./challenge-types";
 import { cardKey, WORD, type Card } from "./types";
@@ -42,7 +44,7 @@ type MoveRow = {
   player_id: string;
   prompt: Card;
   guess: string | null;
-  outcome: "correct" | "wrong" | "pass" | "timeout";
+  outcome: MoveOutcome;
   answer: Card | null;
 };
 
@@ -57,8 +59,13 @@ const newCode = () =>
 const promptLine = (card: Card) =>
   card.kind === "movie" ? `Name an actor in ${card.name}.` : `Name a movie with ${card.name}.`;
 
-/** Push a notification after the response is sent, so a slow push never delays a move. */
-function notifyLater(playerIds: string[], title: string, body: string, challengeId: string) {
+/**
+ * Push a notification after the response is sent, so a slow push never delays a move.
+ * Players already looking at this game see the move on screen, so they don't get one.
+ */
+function notifyLater(players: PlayerRow[], title: string, body: string, challengeId: string) {
+  const now = Date.now();
+  const playerIds = players.filter((p) => !isLive(p, now)).map((p) => p.player_id);
   if (playerIds.length === 0) return;
   after(() =>
     notifyPlayers(playerIds, { title, body, url: `/c/${challengeId}`, tag: `challenge-${challengeId}` }).catch(
@@ -184,7 +191,7 @@ export async function rematchChallenge(id: string, playerId: string): Promise<st
   }
 
   notifyLater(
-    players.filter((p) => p.player_id !== playerId).map((p) => p.player_id),
+    players.filter((p) => p.player_id !== playerId),
     `🐴 ${me.nickname} wants a rematch!`,
     "Same crew, new chain. Tap to jump back in.",
     newId,
@@ -207,7 +214,7 @@ export async function joinChallenge(id: string, playerId: string, nickname: stri
   // A simultaneous join can grab the same seat; the unique constraint rejects one of them.
   if (error) return { ok: false as const, reason: "retry" };
   notifyLater(
-    [challenge.host_id],
+    players.filter((p) => p.player_id === challenge.host_id),
     `🐴 ${nickname} joined your game`,
     `${players.length + 1} players in the lobby. Start whenever you're ready.`,
     id,
@@ -235,10 +242,10 @@ export async function startChallenge(id: string, playerId: string) {
     const first = players[0];
     const host = players.find((p) => p.player_id === playerId)?.nickname ?? "The host";
     if (first.player_id !== playerId) {
-      notifyLater([first.player_id], "🐴 Game on. Your turn!", promptLine(card), id);
+      notifyLater([first], "🐴 Game on. Your turn!", promptLine(card), id);
     }
     notifyLater(
-      players.filter((p) => p.player_id !== playerId && p.player_id !== first.player_id).map((p) => p.player_id),
+      players.filter((p) => p.player_id !== playerId && p.player_id !== first.player_id),
       "🐴 Game on!",
       `${host} started the game. ${first.nickname} goes first.`,
       id,
@@ -250,7 +257,7 @@ export async function startChallenge(id: string, playerId: string) {
 async function applyMove(
   challenge: ChallengeRow,
   players: PlayerRow[],
-  outcome: "correct" | "wrong" | "pass" | "timeout",
+  outcome: MoveOutcome,
   guess: string | null,
   answer: Card | null,
 ): Promise<boolean> {
@@ -284,20 +291,30 @@ async function applyMove(
       ? `${mover.nickname} said ${answer!.name} ✓`
       : outcome === "timeout"
         ? `${mover.nickname} ran out of time`
-        : outcome === "pass"
-          ? `${mover.nickname} passed`
-          : `${mover.nickname} missed`;
+        : outcome === "skip"
+          ? `${mover.nickname} was skipped after a day`
+          : outcome === "pass"
+            ? `${mover.nickname} passed`
+            : `${mover.nickname} missed`;
   if (finished) {
     const winner = alive[0];
     notifyLater(
-      players.filter((p) => p.player_id !== mover.player_id || outcome === "timeout").map((p) => p.player_id),
+      players.filter((p) => p.player_id !== mover.player_id || outcome === "timeout" || outcome === "skip"),
       winner ? `🏆 ${winner.nickname} wins Movie Horse!` : "🐴 Game over",
       `${what}. That's the game.`,
       challenge.id,
     );
   } else {
     const up = players.find((p) => p.seat === next)!;
-    notifyLater([up.player_id], "🐴 Your turn!", `${what}. ${promptLine(card)}`, challenge.id);
+    notifyLater([up], "🐴 Your turn!", `${what}. ${promptLine(card)}`, challenge.id);
+    if (outcome === "skip") {
+      notifyLater(
+        [mover],
+        "⏰ You got skipped",
+        `Your turn sat for a day, so that's ${WORD[mover.letters - 1]}. It's ${up.nickname}'s turn now.`,
+        challenge.id,
+      );
+    }
   }
 
   const supabase = db();
@@ -351,6 +368,60 @@ export async function submitMove(
   return { ok: true, outcome: result.outcome, answer: answer ?? undefined };
 }
 
+/**
+ * Run out an expired turn: the shot clock in live games, or a day's wait in take-your-time
+ * games. Applied whenever anyone looks at the game, and by the nightly sweep.
+ */
+async function enforceClock(c: ChallengeRow, players: PlayerRow[], now: number) {
+  if (c.status !== "playing") return false;
+  if (c.turn_deadline) {
+    if (now <= Date.parse(c.turn_deadline) + 1_000) return false;
+    return applyMove(c, players, "timeout", null, null);
+  }
+  if (!c.turn_started_at || now - Date.parse(c.turn_started_at) < STALL_MS) return false;
+  return applyMove(c, players, "skip", null, null);
+}
+
+/** Skip every turn that has sat for a day, so the next player gets pinged. */
+export async function sweepStalled() {
+  const { data } = await db()
+    .from("challenges")
+    .select("id")
+    .eq("status", "playing")
+    .is("turn_deadline", null)
+    .lt("turn_started_at", new Date(Date.now() - STALL_MS).toISOString())
+    .limit(200);
+  let skipped = 0;
+  for (const { id } of data ?? []) {
+    const state = await load(id);
+    if (state && (await enforceClock(state.challenge, state.players, Date.now()))) skipped++;
+  }
+  return skipped;
+}
+
+/** The host can remove someone from the lobby (say, a friend who never showed up). */
+export async function removeFromLobby(id: string, hostId: string, seat: number) {
+  const state = await load(id);
+  if (!state || state.challenge.status !== "lobby" || state.challenge.host_id !== hostId) return false;
+  const target = state.players.find((p) => p.seat === seat);
+  if (!target || target.player_id === hostId) return false;
+  const { error } = await db()
+    .from("challenge_players")
+    .delete()
+    .eq("challenge_id", id)
+    .eq("player_id", target.player_id);
+  return !error;
+}
+
+/** The player left the screen (closed the app, switched away), so turn alerts should reach them. */
+export async function markAway(id: string, playerId: string) {
+  await db()
+    .from("challenge_players")
+    .update({ last_seen: new Date(Date.now() - LIVE_MS - 1_000).toISOString() })
+    .eq("challenge_id", id)
+    .eq("player_id", playerId);
+}
+
 /** Read a challenge for one player. Also records that they're watching and enforces the shot clock. */
 export async function viewChallenge(id: string, playerId: string | null): Promise<ChallengeView | null> {
   let state = await load(id);
@@ -367,15 +438,7 @@ export async function viewChallenge(id: string, playerId: string | null): Promis
     me.last_seen = new Date(now).toISOString();
   }
 
-  const { challenge } = state;
-  if (
-    challenge.status === "playing" &&
-    challenge.turn_deadline &&
-    now > Date.parse(challenge.turn_deadline) + 1_000
-  ) {
-    await applyMove(challenge, state.players, "timeout", null, null);
-    state = (await load(id))!;
-  }
+  if (await enforceClock(state.challenge, state.players, now)) state = (await load(id))!;
 
   const c = state.challenge;
   const nickname = (pid: string) =>
@@ -434,6 +497,21 @@ export type ChallengeSummary = {
 /** One-line status for each game in a device's "Your games" list. */
 export async function summarizeChallenges(ids: string[], playerId: string | null): Promise<ChallengeSummary[]> {
   const supabase = db();
+  // Run out any of these games whose turn has sat too long, so the list (and badge) is current.
+  const { data: waiting } = await supabase
+    .from("challenges")
+    .select("id")
+    .in("id", ids)
+    .eq("status", "playing")
+    .or(
+      `turn_deadline.lt."${new Date(Date.now() - 1_000).toISOString()}",` +
+        `turn_started_at.lt."${new Date(Date.now() - STALL_MS).toISOString()}"`,
+    );
+  for (const { id } of waiting ?? []) {
+    const state = await load(id);
+    if (state) await enforceClock(state.challenge, state.players, Date.now());
+  }
+
   const [c, p] = await Promise.all([
     supabase.from("challenges").select("id, status, turn_seat, winner_id, updated_at").in("id", ids),
     supabase.from("challenge_players").select("challenge_id, player_id, seat, nickname").in("challenge_id", ids),

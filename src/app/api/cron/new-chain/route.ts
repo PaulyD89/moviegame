@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { puzzleDate } from "@/lib/daily-clock";
+import { sweepStalled } from "@/lib/challenge";
 import { dailyStart } from "@/lib/game";
 import { notifyDailySubscribers } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -15,13 +16,16 @@ export async function GET(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  // Both nightly runs also skip challenge turns that have sat for a day.
+  const skipped = await sweepStalled();
+
   const nyHour = Number(
     new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }).format(
       new Date(),
     ),
   );
   const force = new URL(request.url).searchParams.has("force");
-  if (nyHour !== 0 && !force) return Response.json({ skipped: `It's ${nyHour}:00 in New York` });
+  if (nyHour !== 0 && !force) return Response.json({ skipped: `It's ${nyHour}:00 in New York`, stalledTurnsSkipped: skipped });
 
   // Choose and save tonight's puzzle now, so the first player doesn't wait for it.
   const { number, card } = await dailyStart(puzzleDate());
@@ -33,7 +37,7 @@ export async function GET(request: Request) {
     .eq("number", number)
     .is("reminded_at", null)
     .select("number");
-  if (!data?.length) return Response.json({ number, skipped: "Already reminded" });
+  if (!data?.length) return Response.json({ number, skipped: "Already reminded", stalledTurnsSkipped: skipped });
 
   const sent = await notifyDailySubscribers({
     title: "Movie Horse",
@@ -41,5 +45,5 @@ export async function GET(request: Request) {
     url: "/",
     tag: "daily",
   });
-  return Response.json({ number, sent });
+  return Response.json({ number, sent, stalledTurnsSkipped: skipped });
 }

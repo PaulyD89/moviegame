@@ -3,6 +3,7 @@
 import { puzzleDate, puzzleNumber } from "@/lib/daily-clock";
 import { dailyRank, logDailyFinish, logDailyStart, type DailyFinish } from "@/lib/daily-log";
 import { playerId } from "@/lib/player";
+import { allow } from "@/lib/rate-limit";
 import { checkGuess, dailyStart, passCard } from "@/lib/game";
 import type { Card } from "@/lib/types";
 
@@ -20,11 +21,14 @@ export async function startDaily(dateStr: string) {
 
 export async function submitGuess(card: Card, guess: string, used: string[], dateStr: string) {
   if (!DATE.test(dateStr)) throw new Error("Bad date");
+  if (!(await allow("guess", await playerId(false)))) return { outcome: "slow" as const };
   return checkGuess(card, guess.slice(0, 120), used.slice(0, 200), dateStr);
 }
 
+/** The replacement card, or null if this player is going too fast. */
 export async function pass(card: Card, from: Card | null, used: string[], dateStr: string) {
   if (!DATE.test(dateStr)) throw new Error("Bad date");
+  if (!(await allow("guess", await playerId(false)))) return null;
   return passCard(card, from, used.slice(0, 200), dateStr);
 }
 

@@ -12,7 +12,12 @@ export function YourGames() {
 
   useEffect(() => {
     const ids = loadGameIds();
-    if (ids.length) myGames(ids).then(setGames).catch(() => {});
+    // Finished games drop off the list after a few days; open ones stay until they end.
+    const cutoff = Date.now() - 3 * 24 * 60 * 60 * 1000;
+    if (ids.length)
+      myGames(ids)
+        .then((all) => setGames(all.filter((g) => g.status !== "finished" || Date.parse(g.updatedAt) > cutoff)))
+        .catch(() => {});
   }, []);
 
   if (games.length === 0) return null;

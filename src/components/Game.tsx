@@ -1,13 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { dailyFinished, dailyStarted, pass, startDaily, submitGuess } from "@/app/actions";
 import { puzzleDate } from "@/lib/daily-clock";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
 import { loadNickname } from "./challenge/nickname";
+import { VsButton } from "./challenge/VsButton";
 import { HelpButton, HowToPlay, hasSeenHowTo } from "./HowToPlay";
 import { StatsButton, StatsSheet } from "./StatsSheet";
 import { Logo } from "./Logo";
@@ -15,6 +15,8 @@ import { UsedWarning } from "./UsedWarning";
 import { Results } from "./Results";
 import { currentStreak, loadGame, loadStats, recordResult, saveGame, type SavedGame } from "./storage";
 
+
+const SLOW = "Whoa, slow down a sec. Try again in a moment.";
 
 type Feedback = { tone: "good" | "bad" | "info" | "used"; text: string; id?: number } | null;
 
@@ -122,6 +124,10 @@ export function Game() {
 
     startTransition(async () => {
       const result = await submitGuess(card, text, game!.used, game!.date);
+      if (result.outcome === "slow") {
+        setFeedback({ tone: "info", text: SLOW });
+        return;
+      }
       if (result.outcome === "used") {
         setGuess("");
         setFeedback({ tone: "used", text: result.answer.name, id: Date.now() });
@@ -166,6 +172,7 @@ export function Game() {
     countStart();
     startTransition(async () => {
       const nextCard = await pass(card, game!.from, game!.used, game!.date);
+      if (!nextCard) return setFeedback({ tone: "info", text: SLOW });
       const next = addLetter(game!, "pass");
       setFeedback({ tone: "info", text: `Passed. That's ${WORD[next.letters - 1]}.` });
       setGame(finish({ ...next, card: nextCard, used: [...next.used, cardKey(nextCard)] }));
@@ -178,13 +185,7 @@ export function Game() {
       {showStats && <StatsSheet todayNumber={game.number} onClose={() => setShowStats(false)} />}
       <div className="relative w-full">
         <Logo size="sm" />
-        <Link
-          href="/challenge"
-          aria-label="Challenge a friend"
-          className="absolute top-0 left-0 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 font-display text-sm tracking-wide text-amber-400 active:bg-white/10"
-        >
-          VS
-        </Link>
+        <VsButton />
         <StatsButton onClick={() => setShowStats(true)} className="right-12" />
         <HelpButton onClick={() => setShowHelp(true)} />
       </div>
