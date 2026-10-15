@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { Shell } from "@/components/Shell";
 
@@ -12,7 +13,15 @@ const CONTACT = "moviehorsegame@gmail.com";
 export default function PrivacyPage() {
   return (
     <Shell>
-      <Logo size="lg" />
+      <div className="relative w-full">
+        <Link
+          href="/"
+          className="absolute top-0 left-0 z-10 flex h-11 items-center rounded-full border border-white/15 px-4 text-sm text-zinc-300 active:bg-white/10"
+        >
+          ← Daily
+        </Link>
+        <Logo size="lg" />
+      </div>
       <article className="mt-4 space-y-6 text-[15px] leading-relaxed text-zinc-200">
         <header className="text-center">
           <h2 className="font-display text-[1.9rem] tracking-wide text-amber-400">PRIVACY</h2>
@@ -85,6 +94,13 @@ export default function PrivacyPage() {
           </a>
           .
         </Section>
+
+        <Link
+          href="/"
+          className="flex min-h-12 w-full items-center justify-center rounded-xl bg-amber-400 text-lg font-bold text-black active:scale-[0.98]"
+        >
+          Back to the game
+        </Link>
       </article>
     </Shell>
   );

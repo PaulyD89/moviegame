@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { join, kick, move, rematch, start, view } from "@/app/challenge/actions";
+import { join, kick, move, rematch, start, view, waitlist } from "@/app/challenge/actions";
 import {
   MAX_PLAYERS,
   SHOT_CLOCK_MS,
@@ -37,7 +37,7 @@ export function ChallengeRoom({ id }: { id: string }) {
         if (!active) return;
         setState(next);
         if (next) setOffset(next.serverNow - Date.now());
-        if (next?.youSeat !== null && next?.youSeat !== undefined) rememberGame(next.id);
+        if ((next?.youSeat !== null && next?.youSeat !== undefined) || next?.youWaiting) rememberGame(next.id);
       } catch {
         // Network blip; the next poll will catch up.
       }
@@ -80,7 +80,7 @@ export function ChallengeRoom({ id }: { id: string }) {
       <Header />
       {state.status === "lobby" && <Lobby state={state} reload={reload} />}
       {state.status === "playing" && <Playing state={state} offset={offset} reload={reload} />}
-      {state.status === "finished" && <Finished state={state} />}
+      {state.status === "finished" && <Finished state={state} reload={reload} />}
     </div>
   );
 }
@@ -314,6 +314,11 @@ function Playing({
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
+      {!me && (
+        <p className="w-full rounded-xl bg-amber-400/15 px-4 py-3 text-center text-sm text-amber-100 ring-1 ring-amber-400/50">
+          🍿 This game started without you. You&apos;re watching live.
+        </p>
+      )}
       <PlayerStrip players={state.players} turnSeat={state.turnSeat} />
       <LastMove move={state.moves.at(-1)} />
       {state.turnDeadline && (
@@ -330,7 +335,7 @@ function Playing({
             <b className="text-white">{current?.nickname}</b>
             {card.kind === "movie" ? " to name an actor…" : " to name a movie…"}
           </p>
-          {current && !current.live && (
+          {me && current && !current.live && (
             <>
               <p className="mt-1 text-sm text-zinc-500">
                 They&apos;re not on the screen right now. The game is saved; give them a nudge.
@@ -345,6 +350,8 @@ function Playing({
       )}
 
       {!myTurn && me && !me.out && <NotifyButton mode="challenge" code={state.code} />}
+      {!me && <NextGamePanel state={state} reload={reload} />}
+      {me && <WaitingFriends names={state.waiting} />}
       <ChainLog moves={state.moves} />
     </div>
   );
@@ -585,9 +592,98 @@ function ChainLog({ moves }: { moves: ChallengeMove[] }) {
   );
 }
 
+/* ---------- Late arrivals ---------- */
+
+/** For someone who opened the link after the start: get a seat in the next game. */
+function NextGamePanel({ state, reload }: { state: ChallengeView; reload: () => Promise<void> }) {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (inputRef.current && !inputRef.current.value) inputRef.current.value = loadNickname();
+  }, [state.youWaiting]);
+
+  if (state.youInNext && state.rematchId) {
+    return (
+      <Link
+        href={`/c/${state.rematchId}`}
+        className="flex min-h-12 w-full items-center justify-center rounded-xl bg-amber-400 text-lg font-bold text-black active:scale-[0.98]"
+      >
+        You&apos;re in! Go to the next game →
+      </Link>
+    );
+  }
+  if (state.youWaiting) {
+    return (
+      <div className="flex w-full flex-col gap-3 rounded-xl bg-white/5 p-4 text-center">
+        <p className="text-white">✓ You&apos;re in the next game.</p>
+        <p className="text-sm text-zinc-300">
+          When someone taps Rematch, you&apos;ll be added automatically. Watch along until then.
+        </p>
+        <NotifyButton mode="challenge" code={state.code} />
+      </div>
+    );
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const nickname = inputRef.current?.value.trim() ?? "";
+    if (!nickname) return setError("Pick a nickname first.");
+    startTransition(async () => {
+      saveNickname(nickname);
+      const result = await waitlist(state.id, nickname);
+      if (!result.ok) {
+        setError(result.reason === "full" ? "The next game is already full." : "Couldn't add you. Try again.");
+        return;
+      }
+      track("challenge_waitlisted");
+      if ("rematchId" in result && result.rematchId) router.push(`/c/${result.rematchId}`);
+      else await reload();
+    });
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="flex w-full flex-col gap-3 rounded-xl bg-white/5 p-4">
+      <p className="text-center text-sm text-zinc-200">
+        Want to play? Get a seat in the next game. You&apos;ll be added when someone taps Rematch.
+      </p>
+      <input
+        ref={inputRef}
+        maxLength={20}
+        autoComplete="nickname"
+        placeholder="Your nickname"
+        aria-label="Your nickname"
+        className="w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3.5 text-lg outline-none placeholder:text-zinc-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
+      />
+      <button
+        type="submit"
+        disabled={isPending}
+        className="min-h-12 rounded-xl bg-amber-400 text-lg font-bold text-black active:scale-[0.98] disabled:opacity-40"
+      >
+        {isPending ? "Saving your seat…" : "Put me in the next game"}
+      </button>
+      {error && <p className="text-center text-sm text-red-400">{error}</p>}
+    </form>
+  );
+}
+
+/** Lets the players know friends are waiting, so someone starts a rematch. */
+function WaitingFriends({ names, finished }: { names: string[]; finished?: boolean }) {
+  if (names.length === 0) return null;
+  const who = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  return (
+    <p className="w-full rounded-xl bg-white/5 px-4 py-3 text-center text-sm text-zinc-200">
+      ⏳ <b className="text-white">{who}</b> {names.length === 1 ? "is" : "are"} waiting for the next game.
+      {finished && " Tap Rematch to bring them in."}
+    </p>
+  );
+}
+
 /* ---------- Finished ---------- */
 
-function Finished({ state }: { state: ChallengeView }) {
+function Finished({ state, reload }: { state: ChallengeView; reload: () => Promise<void> }) {
   const router = useRouter();
   const me = state.players.find((p) => p.isYou);
   const youWon = !!me && state.winnerSeat === me.seat;
@@ -649,6 +745,8 @@ function Finished({ state }: { state: ChallengeView }) {
       )}
 
       {me && <ShareChallenge state={state} standings={standings} links={chain.length} youWon={youWon} />}
+      {me && !state.rematchId && <WaitingFriends names={state.waiting} finished />}
+      {!me && <NextGamePanel state={state} reload={reload} />}
       {me && state.rematchId ? (
         <Link
           href={`/c/${state.rematchId}`}

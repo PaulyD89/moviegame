@@ -8,6 +8,7 @@ import {
   rematchChallenge,
   removeFromLobby,
   startChallenge,
+  waitForNext,
   submitMove,
   summarizeChallenges,
   viewChallenge,
@@ -33,6 +34,14 @@ export async function join(id: string, nickname: string) {
   const name = cleanNickname(nickname);
   if (!name) return { ok: false as const, reason: "nickname" };
   return joinChallenge(id, await playerId(true), name);
+}
+
+/** Late to a game that already started: get a seat in the next one. */
+export async function waitlist(id: string, nickname: string) {
+  checkId(id);
+  const name = cleanNickname(nickname);
+  if (!name) return { ok: false as const, reason: "nickname" };
+  return waitForNext(id, await playerId(true), name);
 }
 
 export async function start(id: string) {

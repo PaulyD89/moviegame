@@ -44,6 +44,12 @@ export type ChallengeView = {
   youAreHost: boolean;
   code: string | null;
   rematchId: string | null;
+  /** Friends who arrived after the start and will be seated in the rematch. */
+  waiting: string[];
+  /** You opened the link late and asked to be in the next game. */
+  youWaiting: boolean;
+  /** You were waiting and have been seated in the rematch. */
+  youInNext: boolean;
 };
 
 export type MoveResult =

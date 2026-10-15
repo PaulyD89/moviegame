@@ -60,7 +60,7 @@ export function NewChallenge() {
       <YourGames />
 
       <div className="mt-4 text-center">
-        <h2 className="font-display text-4xl tracking-wide text-amber-400">CHALLENGE A FRIEND</h2>
+        <h2 className="font-display text-4xl tracking-wide text-amber-400">PLAY WITH FRIENDS</h2>
         <p className="mt-2 text-zinc-300">
           Up to {MAX_PLAYERS} players take turns on one chain. Miss and you get a letter. Last one
           standing wins.

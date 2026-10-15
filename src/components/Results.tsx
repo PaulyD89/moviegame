@@ -203,7 +203,7 @@ export function Results({ game }: { game: SavedGame }) {
         href="/challenge"
         className="-mt-2 flex min-h-12 w-full items-center justify-center rounded-xl border border-amber-400 text-lg font-bold text-amber-400 active:scale-[0.98]"
       >
-        Challenge a friend
+        Play with friends
       </Link>
       <TodayRank number={game.number} />
       <NextPuzzle />

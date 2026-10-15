@@ -34,8 +34,8 @@ export function VsButton() {
       href="/challenge"
       aria-label={
         waiting
-          ? `Challenge a friend. It's your turn in ${waiting} ${waiting === 1 ? "game" : "games"}`
-          : "Challenge a friend"
+          ? `Play with friends. It's your turn in ${waiting} ${waiting === 1 ? "game" : "games"}`
+          : "Play with friends"
       }
       className="absolute top-0 left-0 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 font-display text-sm tracking-wide text-amber-400 active:bg-white/10"
     >

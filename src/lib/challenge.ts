@@ -40,6 +40,8 @@ type PlayerRow = {
   last_seen: string;
 };
 
+type WaitRow = { player_id: string; nickname: string };
+
 type MoveRow = {
   id: number;
   player_id: string;
@@ -81,7 +83,7 @@ export function cleanNickname(name: string) {
 
 async function load(id: string) {
   const supabase = db();
-  const [c, p, m] = await Promise.all([
+  const [c, p, m, w] = await Promise.all([
     supabase.from("challenges").select("*").eq("id", id).maybeSingle<ChallengeRow>(),
     supabase.from("challenge_players").select("*").eq("challenge_id", id).order("seat"),
     supabase
@@ -90,6 +92,7 @@ async function load(id: string) {
       .eq("challenge_id", id)
       .order("id", { ascending: false })
       .limit(300), // enough for a whole game, so final standings and link counts are complete
+    supabase.from("challenge_waitlist").select("player_id, nickname").eq("challenge_id", id).order("joined_at"),
   ]);
   if (c.error) throw c.error;
   if (!c.data) return null;
@@ -97,6 +100,7 @@ async function load(id: string) {
     challenge: c.data,
     players: (p.data ?? []) as PlayerRow[],
     moves: ((m.data ?? []) as MoveRow[]).reverse(),
+    waiting: (w.data ?? []) as WaitRow[],
   };
 }
 
@@ -191,6 +195,23 @@ export async function rematchChallenge(id: string, playerId: string): Promise<st
     return (await load(id))?.challenge.rematch_id ?? null;
   }
 
+  // Friends who showed up late get the open seats.
+  const late = state.waiting
+    .filter((w) => !players.some((p) => p.player_id === w.player_id))
+    .slice(0, MAX_PLAYERS - players.length);
+  if (late.length) {
+    await db()
+      .from("challenge_players")
+      .insert(late.map((w, i) => ({ challenge_id: newId, player_id: w.player_id, seat: players.length + i, nickname: w.nickname })));
+    notifyLater(
+      late.map((w) => ({ player_id: w.player_id, seat: -1, nickname: w.nickname, letters: 0, last_seen: new Date(0).toISOString() })),
+      "🐴 You're in the next game!",
+      `${me.nickname} started a rematch. Tap to join the lobby.`,
+      newId,
+    );
+  }
+  await db().from("challenge_waitlist").delete().eq("challenge_id", id);
+
   notifyLater(
     players.filter((p) => p.player_id !== playerId),
     `🐴 ${me.nickname} wants a rematch!`,
@@ -221,6 +242,31 @@ export async function joinChallenge(id: string, playerId: string, nickname: stri
     id,
   );
   return { ok: true as const };
+}
+
+/**
+ * Someone opened the link after the game started: put them in line for the rematch.
+ * In a lobby they just join; if a rematch already exists, they join that.
+ */
+type WaitResult = { ok: true; rematchId?: string } | { ok: false; reason: string };
+
+export async function waitForNext(id: string, playerId: string, nickname: string): Promise<WaitResult> {
+  const state = await load(id);
+  if (!state) return { ok: false, reason: "not-found" };
+  const { challenge, players, waiting } = state;
+  if (players.some((p) => p.player_id === playerId)) return { ok: true };
+  if (challenge.status === "lobby") return joinChallenge(id, playerId, nickname);
+  if (challenge.rematch_id) {
+    // The next game already exists (maybe even started): get in line for that one instead.
+    const next = await waitForNext(challenge.rematch_id, playerId, nickname);
+    return next.ok ? { ok: true, rematchId: next.rematchId ?? challenge.rematch_id } : next;
+  }
+  const others = waiting.filter((w) => w.player_id !== playerId);
+  if (players.length + others.length >= MAX_PLAYERS) return { ok: false, reason: "full" };
+  const { error } = await db()
+    .from("challenge_waitlist")
+    .upsert({ challenge_id: id, player_id: playerId, nickname });
+  return error ? { ok: false, reason: "retry" } : { ok: true };
 }
 
 export async function startChallenge(id: string, playerId: string) {
@@ -442,6 +488,17 @@ export async function viewChallenge(id: string, playerId: string | null): Promis
   if (await enforceClock(state.challenge, state.players, now)) state = (await load(id))!;
 
   const c = state.challenge;
+  // A late friend who's been seated in the rematch: tell them where to go.
+  let youInNext = false;
+  if (c.rematch_id && playerId && !me) {
+    const { data } = await db()
+      .from("challenge_players")
+      .select("player_id")
+      .eq("challenge_id", c.rematch_id)
+      .eq("player_id", playerId)
+      .maybeSingle();
+    youInNext = !!data;
+  }
   const nickname = (pid: string) =>
     state.players.find((p) => p.player_id === pid)?.nickname ?? "Someone";
   return {
@@ -476,6 +533,9 @@ export async function viewChallenge(id: string, playerId: string | null): Promis
     youAreHost: c.host_id === playerId,
     code: c.code,
     rematchId: c.rematch_id,
+    waiting: state.waiting.map((w) => w.nickname),
+    youWaiting: !!playerId && state.waiting.some((w) => w.player_id === playerId),
+    youInNext,
   };
 }
 
