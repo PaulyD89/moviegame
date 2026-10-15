@@ -12,10 +12,10 @@ const CONTACT = "moviehorsegame@gmail.com";
 export default function PrivacyPage() {
   return (
     <Shell>
-      <Logo size="sm" />
+      <Logo size="lg" />
       <article className="mt-4 space-y-6 text-[15px] leading-relaxed text-zinc-200">
-        <header>
-          <h2 className="font-display text-4xl tracking-wide text-amber-400">PRIVACY</h2>
+        <header className="text-center">
+          <h2 className="font-display text-[1.9rem] tracking-wide text-amber-400">PRIVACY</h2>
           <p className="text-sm text-zinc-400">Last updated October 14, 2026</p>
         </header>
 
