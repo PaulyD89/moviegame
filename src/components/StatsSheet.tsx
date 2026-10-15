@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { myGlobalRank } from "@/app/actions";
+import type { GlobalRank } from "@/lib/rank";
 import { LINKS_TO_WIN } from "@/lib/types";
 import { currentStreak, loadChallengeStats, loadStats } from "./storage";
 
@@ -15,6 +17,13 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
   const [daily] = useState(loadStats);
   const [vs] = useState(loadChallengeStats);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [rank, setRank] = useState<GlobalRank | null | undefined>(undefined);
+
+  useEffect(() => {
+    myGlobalRank()
+      .then(setRank)
+      .catch(() => setRank(null));
+  }, []);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -40,6 +49,8 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
           YOUR STATS
         </h2>
 
+        <GlobalRankCard rank={rank} />
+
         <h3 className="mt-5 text-xs uppercase tracking-widest text-zinc-300">Daily Movie Chain</h3>
         <div className="mt-2 grid grid-cols-4 gap-2 text-center">
           <Stat label="Played" value={daily.played} />
@@ -60,7 +71,9 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
           <Stat label="Win %" value={pct(vs.won, vs.played)} />
         </div>
 
-        <p className="mt-5 text-center text-xs text-zinc-400">Stats are saved on this device.</p>
+        <p className="mt-5 text-center text-xs text-zinc-400">
+          Stats are saved on this device. Your global rank follows this phone&apos;s browser.
+        </p>
         <button
           ref={closeRef}
           onClick={onClose}
@@ -70,6 +83,48 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
         </button>
       </div>
     </div>
+  );
+}
+
+/** Where you stand among every Movie Horse player, by all-time points. */
+function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
+  const [showHow, setShowHow] = useState(false);
+  return (
+    <section className="mt-4 rounded-2xl border border-amber-400/50 p-4 text-center">
+      <h3 className="text-xs uppercase tracking-widest text-amber-400">Global rank</h3>
+      {rank === undefined ? (
+        <p className="mt-2 h-14 text-zinc-400">Loading…</p>
+      ) : rank?.rank ? (
+        <>
+          <div className="mt-1 font-display text-5xl tracking-wide text-white">
+            #{rank.rank.toLocaleString()}
+          </div>
+          <p className="text-sm text-zinc-300">
+            of {rank.ranked.toLocaleString()} {rank.ranked === 1 ? "player" : "players"} ·{" "}
+            <b className="text-white">{rank.points.toLocaleString()}</b> pts
+          </p>
+        </>
+      ) : (
+        <p className="mt-2 text-sm text-zinc-300">
+          {rank === null ? "Couldn't load your rank right now." : "Finish a daily or win a challenge to get ranked."}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={() => setShowHow(!showHow)}
+        aria-expanded={showHow}
+        className="mt-2 min-h-11 px-3 text-xs text-zinc-400 underline"
+      >
+        How points work
+      </button>
+      {showHow && (
+        <ul className="mt-1 space-y-1 text-left text-sm text-zinc-300">
+          <li>🏆 Daily win: <b className="text-white">10 pts</b> + 2 for each letter you didn&apos;t get</li>
+          <li>🎬 Daily finished without winning: <b className="text-white">2 pts</b></li>
+          <li>⚔️ Challenge win: <b className="text-white">5 pts</b> for each player you beat</li>
+        </ul>
+      )}
+    </section>
   );
 }
 

@@ -3,6 +3,7 @@
 import { puzzleDate, puzzleNumber } from "@/lib/daily-clock";
 import { dailyRank, logDailyFinish, logDailyStart, type DailyFinish } from "@/lib/daily-log";
 import { playerId } from "@/lib/player";
+import { globalRank } from "@/lib/rank";
 import { allow } from "@/lib/rate-limit";
 import { checkGuess, dailyStart, passCard } from "@/lib/game";
 import type { Card } from "@/lib/types";
@@ -61,4 +62,10 @@ export async function myDailyRank(puzzle: number) {
   currentPuzzle(puzzle);
   const pid = await playerId(false);
   return pid ? dailyRank(puzzle, pid) : null;
+}
+
+/** Global ranking for the stats screen; null for a phone that hasn't played yet. */
+export async function myGlobalRank() {
+  const pid = await playerId(false);
+  return pid ? globalRank(pid) : null;
 }
