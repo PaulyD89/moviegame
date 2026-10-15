@@ -42,7 +42,7 @@ export default function PrivacyPage() {
             </li>
             <li>
               <b className="text-white">Daily results.</b> For each daily Movie Chain: how far you got, letters,
-              and time, tied only to the anonymous ID. We use these (and who won each challenge) for overall counts,
+              and time, tied only to the anonymous ID. We use these for overall counts,
               the &ldquo;you beat X% of players&rdquo; line, and your global rank. Rankings only show you
               your own place; nobody else can see your rank or results.
             </li>

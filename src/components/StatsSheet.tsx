@@ -106,7 +106,7 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
         </>
       ) : (
         <p className="mt-2 text-sm text-zinc-300">
-          {rank === null ? "Couldn't load your rank right now." : "Finish a daily or win a challenge to get ranked."}
+          {rank === null ? "Couldn't load your rank right now." : "Finish a daily Movie Chain to get ranked."}
         </p>
       )}
       <button
@@ -118,11 +118,16 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
         How points work
       </button>
       {showHow && (
-        <ul className="mt-1 space-y-1 text-left text-sm text-zinc-300">
-          <li>🏆 Daily win: <b className="text-white">10 pts</b> + 2 for each letter you didn&apos;t get</li>
-          <li>🎬 Daily finished without winning: <b className="text-white">2 pts</b></li>
-          <li>⚔️ Challenge win: <b className="text-white">5 pts</b> for each player you beat</li>
-        </ul>
+        <div className="mt-1 text-left">
+          <ul className="space-y-1 text-sm text-zinc-300">
+            <li>🏆 Daily win: <b className="text-white">10 pts</b> + 2 for each letter you didn&apos;t get</li>
+            <li>🎬 Daily finished without winning: <b className="text-white">2 pts</b></li>
+          </ul>
+          <p className="mt-2 text-xs text-zinc-400">
+            Only the daily counts, since everyone plays the same puzzle once a day. Challenge wins show in
+            your stats below.
+          </p>
+        </div>
       )}
     </section>
   );
