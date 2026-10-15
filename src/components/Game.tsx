@@ -9,7 +9,7 @@ import type { DailySync } from "@/lib/daily-play";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
 import { loadNickname } from "./challenge/nickname";
 import { VsButton } from "./challenge/VsButton";
-import { HelpButton, HowToPlay, hasSeenHowTo } from "./HowToPlay";
+import { HelpButton, HowToPlay } from "./HowToPlay";
 import { StatsButton, StatsSheet } from "./StatsSheet";
 import { Logo } from "./Logo";
 import { backupAfterGame } from "./progress/snapshot";
@@ -63,7 +63,6 @@ export function Game() {
       .then((g) => {
         if (!g) throw new Error("No game");
         apply(g);
-        if (g.status === "playing" && g.events.length === 0 && !hasSeenHowTo()) setShowHelp(true);
       })
       .catch(() => setError("Couldn't load today's game. Check your connection and try again."));
   }, [open, apply]);
