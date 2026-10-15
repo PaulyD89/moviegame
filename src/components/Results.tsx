@@ -10,6 +10,7 @@ import { msUntilNextPuzzle } from "@/lib/daily-clock";
 import { LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
 import { Logo } from "./Logo";
+import { LetterboxdLink, LetterboxdListButton } from "./Letterboxd";
 import { StatsSheet } from "./StatsSheet";
 import { NotifyButton } from "./push/NotifyButton";
 import { ReminderNudge } from "./push/ReminderNudge";
@@ -30,6 +31,12 @@ function duration(game: SavedGame) {
 function points(game: SavedGame) {
   const base = game.status === "won" ? 10 + 2 * (WORD.length - game.letters) : 2;
   return { base, speed: game.fastLinks ?? 0, total: base + (game.fastLinks ?? 0) };
+}
+
+/** The chain's movies in order, once each, for a Letterboxd list. */
+function chainMovies(chain: Card[]) {
+  const seen = new Set<number>();
+  return chain.filter((c) => c.kind === "movie" && !seen.has(c.id) && seen.add(c.id));
 }
 
 function insights(game: SavedGame) {
@@ -152,9 +159,11 @@ export function Results({ game }: { game: SavedGame }) {
               )}
             </div>
             <div className="mt-1 line-clamp-2 text-xs text-zinc-300">{node.name}</div>
+            {node.kind === "movie" && <LetterboxdLink movieId={node.id} />}
           </li>
         ))}
       </ol>
+      <LetterboxdListButton movies={chainMovies(chain)} number={game.number} />
 
       {typeof game.durationMs === "number" && (
         <SpeedSummary

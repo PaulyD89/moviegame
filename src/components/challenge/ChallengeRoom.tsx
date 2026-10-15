@@ -17,6 +17,7 @@ import { WORD, type Card } from "@/lib/types";
 import { Logo } from "../Logo";
 import { NotifyButton } from "../push/NotifyButton";
 import { recordChallenge } from "../storage";
+import { LetterboxdLink } from "../Letterboxd";
 import { UsedWarning } from "../UsedWarning";
 import { backupAfterGame } from "../progress/snapshot";
 import { markResultSeen, rememberGame } from "./myGames";
@@ -758,6 +759,7 @@ function Finished({ state, reload }: { state: ChallengeView; reload: () => Promi
                   )}
                 </div>
                 <div className="mt-1 line-clamp-2 text-[11px] text-zinc-300">{m.answer!.name}</div>
+                {m.answer!.kind === "movie" && <LetterboxdLink movieId={m.answer!.id} />}
               </li>
             ))}
           </ol>
