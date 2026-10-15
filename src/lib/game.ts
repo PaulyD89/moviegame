@@ -69,16 +69,34 @@ function pickWeighted<T>(items: T[], seed: string, weight: (item: T) => number):
   return weighted.at(-1)!.item;
 }
 
-/** A well-known movie (1970+) this person acted in that hasn't been used yet. */
+/** 1960s films show up now and then (about 8% of movie picks), and at most once per chain. */
+export const SIXTIES_USED = "era:1960s";
+const SIXTIES_SHARE = 0.08;
+const isSixties = (year?: number) => !!year && year >= 1960 && year < 1970;
+
+/** Keys to record when a card joins a chain, including the one-per-chain 1960s marker. */
+export function usedKeysFor(card: Card) {
+  return [cardKey(card), ...(card.kind === "movie" && isSixties(card.year) ? [SIXTIES_USED] : [])];
+}
+
+/** A well-known movie this person acted in that hasn't been used yet (1970+, or rarely the 1960s). */
 async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string): Promise<Card | null> {
-  const credits = person.movie_credits.cast.filter(
+  const eligible = person.movie_credits.cast.filter(
     (c) =>
       c.poster_path &&
-      yearWeight(yearOf(c.release_date)) > 0 &&
       !used.has(cardKey({ kind: "movie", id: c.id })) &&
       !NOT_A_ROLE.test(c.character ?? "") &&
       !c.genre_ids.some((g) => SKIP_GENRES.has(g)),
   );
+  if (!used.has(SIXTIES_USED) && hash(`${seed}:60s`) / 2 ** 32 < SIXTIES_SHARE) {
+    const sixties = eligible
+      .filter((c) => isSixties(yearOf(c.release_date)) && c.vote_count >= 500)
+      .sort((a, b) => b.vote_count - a.vote_count)
+      .slice(0, 12);
+    const pick = pickWeighted(sixties, seed, () => 1);
+    if (pick) return movieCard(await getMovie(pick.id));
+  }
+  const credits = eligible.filter((c) => yearWeight(yearOf(c.release_date)) > 0);
   for (const minVotes of [2000, 500, 50]) {
     const famous = credits
       .filter((c) => c.vote_count >= minVotes)

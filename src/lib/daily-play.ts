@@ -1,5 +1,5 @@
 import "server-only";
-import { checkGuess, dailyStart, passCard } from "./game";
+import { checkGuess, dailyStart, passCard, usedKeysFor } from "./game";
 import { createAdminClient } from "./supabase/admin";
 import { cardKey, FAST_MS, LINKS_TO_WIN, WORD, type Card } from "./types";
 
@@ -159,7 +159,7 @@ export async function playDaily(date: string, playerId: string, guess: string | 
 
   if (guess === null) {
     const card = await passCard(s.card, s.from, s.used, date);
-    next = addLetter({ ...s, card, used: [...s.used, cardKey(card)] }, "pass");
+    next = addLetter({ ...s, card, used: [...s.used, ...usedKeysFor(card)] }, "pass");
     cardShownAt = now;
     result = { outcome: "pass" };
   } else {
@@ -176,7 +176,7 @@ export async function playDaily(date: string, playerId: string, guess: string | 
         ...s,
         links,
         events: [...s.events, "correct"],
-        used: [...s.used, cardKey(r.answer), ...(r.next ? [cardKey(r.next)] : [])],
+        used: [...s.used, cardKey(r.answer), ...(r.next ? usedKeysFor(r.next) : [])],
         card: r.next ?? s.card,
         from: r.answer,
         fastLinks: s.fastLinks + (fast ? 1 : 0),

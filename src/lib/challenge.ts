@@ -1,6 +1,6 @@
 import "server-only";
 import { after } from "next/server";
-import { matchGuess, startCard } from "./game";
+import { matchGuess, startCard, usedKeysFor } from "./game";
 import { logError } from "./errors";
 import { notifyPlayers } from "./push";
 import { createAdminClient } from "./supabase/admin";
@@ -319,7 +319,7 @@ async function applyMove(
     mover.letters += 1;
     card = await startCard(used, `${challenge.id}:${challenge.version}`);
   }
-  used.add(cardKey(card));
+  for (const key of usedKeysFor(card)) used.add(key);
 
   const alive = players.filter((p) => !isOut(p));
   const finished = alive.length <= 1;
