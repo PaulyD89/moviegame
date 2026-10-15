@@ -487,6 +487,8 @@ export type ChallengeSummary = {
   id: string;
   status: ChallengeRow["status"];
   players: string[];
+  /** Everyone but you, for "vs …". */
+  others: string[];
   yourTurn: boolean;
   turnName: string | null;
   winner: string | null;
@@ -526,6 +528,7 @@ export async function summarizeChallenges(ids: string[], playerId: string | null
         id: row.id,
         status: row.status,
         players: mine.map((x) => x.nickname),
+        others: mine.filter((x) => x.player_id !== playerId).map((x) => x.nickname),
         yourTurn: row.status === "playing" && !!playerId && turn?.player_id === playerId,
         turnName: turn?.nickname ?? null,
         winner: winner?.nickname ?? null,

@@ -14,41 +14,45 @@ export function YourGames() {
     const ids = loadGameIds();
     if (ids.length)
       myGames(ids)
-        .then((all) => setGames(keepGames(all)))
+        // Rows that need you (your turn, an unseen win) float to the top.
+        .then((all) => setGames(keepGames(all).sort((a, b) => Number(status(b).hot) - Number(status(a).hot))))
         .catch(() => {});
   }, []);
 
   if (games.length === 0) return null;
   return (
-    <section className="w-full">
-      <h3 className="mb-2 text-sm uppercase tracking-wider text-zinc-300">Your games</h3>
+    <section className="w-full rounded-2xl border border-amber-400/50 p-3">
+      <h3 className="mb-2 px-1 text-sm uppercase tracking-wider text-amber-400">Your games</h3>
       <ul className="space-y-2">
-        {games.map((g) => (
-          <li key={g.id}>
-            <Link
-              href={`/c/${g.id}`}
-              className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 ring-1 active:bg-white/10 ${
-                g.yourTurn ? "bg-amber-400/15 ring-amber-400" : "bg-white/5 ring-white/10"
-              }`}
-            >
-              <span className="min-w-0 truncate text-white">{g.players.join(", ")}</span>
-              <span
-                className={`shrink-0 text-sm font-semibold ${g.yourTurn ? "text-amber-400" : "text-zinc-300"}`}
+        {games.map((g) => {
+          const { label, hot } = status(g);
+          return (
+            <li key={g.id}>
+              <Link
+                href={`/c/${g.id}`}
+                className={`flex min-h-12 items-center justify-between gap-3 rounded-xl px-4 py-3 ring-1 active:bg-white/10 ${
+                  hot ? "bg-amber-400/15 ring-amber-400" : "bg-white/5 ring-white/10"
+                }`}
               >
-                {g.status === "lobby"
-                  ? "In lobby"
-                  : g.status === "finished"
-                    ? g.youWon
-                      ? "🏆 You won"
-                      : `${g.winner ?? "Someone"} won`
-                    : g.yourTurn
-                      ? "Your turn!"
-                      : `${g.turnName}'s turn`}
-              </span>
-            </Link>
-          </li>
-        ))}
+                <span className="min-w-0 truncate text-white">
+                  {g.others.length ? `vs ${g.others.join(", ")}` : "Just you so far"}
+                </span>
+                <span className={`shrink-0 text-sm font-semibold ${hot ? "text-amber-400" : "text-zinc-300"}`}>
+                  {label}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
+}
+
+/** Right-hand label; "hot" rows need you (your turn, or a result you haven't seen). */
+function status(g: ChallengeSummary) {
+  if (g.status === "lobby") return { label: g.others.length ? "In lobby" : "Invite friends", hot: false };
+  if (g.status === "finished")
+    return { label: g.youWon ? "🏆 You won! See result" : `${g.winner ?? "Someone"} won · See result`, hot: g.youWon };
+  return { label: g.yourTurn ? "Your turn!" : `${g.turnName}'s turn`, hot: g.yourTurn };
 }

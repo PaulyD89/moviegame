@@ -59,7 +59,7 @@ export function NewChallenge() {
       {/* Games already going come first, so tapping the VS badge lands on them. */}
       <YourGames />
 
-      <div className="text-center">
+      <div className="mt-4 text-center">
         <h2 className="font-display text-4xl tracking-wide text-amber-400">CHALLENGE A FRIEND</h2>
         <p className="mt-2 text-zinc-300">
           Up to {MAX_PLAYERS} players take turns on one chain. Miss and you get a letter. Last one

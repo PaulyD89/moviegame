@@ -18,7 +18,7 @@ import { Logo } from "../Logo";
 import { NotifyButton } from "../push/NotifyButton";
 import { recordChallenge } from "../storage";
 import { UsedWarning } from "../UsedWarning";
-import { rememberGame } from "./myGames";
+import { markResultSeen, rememberGame } from "./myGames";
 import { loadNickname, saveNickname } from "./nickname";
 
 const POLL_MS = 2_000;
@@ -595,7 +595,9 @@ function Finished({ state }: { state: ChallengeView }) {
 
   // Count this game in the device's challenge stats (once per game).
   useEffect(() => {
-    if (me) recordChallenge(state.id, youWon);
+    if (!me) return;
+    recordChallenge(state.id, youWon);
+    markResultSeen(state.id);
   }, [me, state.id, youWon]);
   const standings = finalStandings(state);
   const chain = state.moves.filter((m) => m.outcome === "correct" && m.answer);
