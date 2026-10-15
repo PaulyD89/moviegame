@@ -336,10 +336,8 @@ function NextPuzzle() {
   const [left, setLeft] = useState(msUntilNextPuzzle);
   useEffect(() => {
     const t = setInterval(() => {
-      const ms = msUntilNextPuzzle();
-      setLeft(ms);
-      // Past midnight Eastern: reload so the new chain appears.
-      if (ms > 86_000_000) window.location.reload();
+      // The game screen moves to the new chain at midnight Eastern.
+      setLeft(msUntilNextPuzzle());
     }, 1000);
     return () => clearInterval(t);
   }, []);

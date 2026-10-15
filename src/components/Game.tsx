@@ -4,7 +4,7 @@ import Image from "next/image";
 import { track } from "@vercel/analytics";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { openToday, playToday } from "@/app/actions";
-import { puzzleDate } from "@/lib/daily-clock";
+import { msUntilNextPuzzle, puzzleDate, puzzleNumber } from "@/lib/daily-clock";
 import type { DailySync } from "@/lib/daily-play";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
 import { loadNickname } from "./challenge/nickname";
@@ -83,6 +83,33 @@ export function Game() {
     if (game) saveGame(game);
   }, [game]);
 
+  // At midnight Eastern, move to the new chain. A game in progress isn't yanked away: it gets a
+  // banner instead, and can still be finished. Also checked on return, since phones sleep timers.
+  const [newChainOut, setNewChainOut] = useState(false);
+  const midGameAtReset = useRef(false);
+  const date = game?.date;
+  const midGame = game?.status === "playing" && (game?.events.length ?? 0) > 0;
+  useEffect(() => {
+    if (!date) return;
+    const check = () => {
+      if (document.hidden || puzzleDate() === date) return;
+      if (midGame) midGameAtReset.current = true;
+      if (midGameAtReset.current) setNewChainOut(true);
+      else window.location.reload();
+    };
+    const atMidnight = setTimeout(check, msUntilNextPuzzle() + 1500);
+    const backup = setInterval(check, 60_000);
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    return () => {
+      clearTimeout(atMidnight);
+      clearInterval(backup);
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
+    };
+  }, [date, midGame]);
+  const banner = newChainOut && <NewChainBanner />;
+
   if (error)
     return (
       <>
@@ -97,7 +124,13 @@ export function Game() {
         <p className="p-8 text-center text-zinc-400 animate-pulse">Rolling film…</p>
       </>
     );
-  if (game.status !== "playing") return <Results game={game} />;
+  if (game.status !== "playing")
+    return (
+      <>
+        {banner}
+        <Results game={game} />
+      </>
+    );
 
   const { card } = game;
   const askingFor = card.kind === "movie" ? "an actor in this movie" : "a movie this actor was in";
@@ -166,6 +199,7 @@ export function Game() {
         <StatsButton onClick={() => setShowStats(true)} className="right-12" />
         <HelpButton onClick={() => setShowHelp(true)} />
       </div>
+      {banner}
       {game.events.length === 0 && <WelcomeBack todayNumber={game.number} />}
       <Letters count={game.letters} />
 
@@ -257,6 +291,23 @@ export function Game() {
           {feedback?.text}
         </p>
       )}
+    </div>
+  );
+}
+
+/** Shown when a new chain comes out while you're still playing (or finishing) the old one. */
+function NewChainBanner() {
+  return (
+    <div className="mb-3 flex w-full items-center justify-between gap-3 rounded-xl bg-amber-400/15 px-4 py-3 ring-1 ring-amber-400/60">
+      <span className="text-sm text-amber-100">
+        🎬 <b className="text-white">Movie Chain #{puzzleNumber(puzzleDate())}</b> is out!
+      </span>
+      <button
+        onClick={() => window.location.reload()}
+        className="min-h-11 shrink-0 rounded-lg bg-amber-400 px-4 text-sm font-bold text-black active:scale-[0.98]"
+      >
+        Play it
+      </button>
     </div>
   );
 }
