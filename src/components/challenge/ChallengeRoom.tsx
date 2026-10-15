@@ -560,7 +560,7 @@ function Finished({ state }: { state: ChallengeView }) {
   useEffect(() => {
     if (me) recordChallenge(state.id, youWon);
   }, [me, state.id, youWon]);
-  const standings = [...state.players].sort((a, b) => a.letters - b.letters);
+  const standings = finalStandings(state);
   const chain = state.moves.filter((m) => m.outcome === "correct" && m.answer);
 
   return (
@@ -578,7 +578,7 @@ function Finished({ state }: { state: ChallengeView }) {
         {standings.map((p, i) => (
           <li key={p.seat} className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
             <span className="font-medium">
-              {i === 0 ? "🏆 " : ""}
+              {i === 0 ? "🏆 " : `${i + 1}. `}
               {p.nickname}
               {p.isYou && <span className="text-xs text-zinc-500"> (you)</span>}
             </span>
@@ -609,6 +609,7 @@ function Finished({ state }: { state: ChallengeView }) {
         </div>
       )}
 
+      {me && <ShareChallenge state={state} standings={standings} links={chain.length} youWon={youWon} />}
       {me && state.rematchId ? (
         <Link
           href={`/c/${state.rematchId}`}
@@ -641,5 +642,74 @@ function Finished({ state }: { state: ChallengeView }) {
         Play today&apos;s daily
       </Link>
     </div>
+  );
+}
+
+/**
+ * Winner first, then everyone else by when they were knocked out (last out = 2nd).
+ * A player's knock-out moment is their final miss in the game log.
+ */
+function finalStandings(state: ChallengeView) {
+  const lastMiss = new Map<number, number>();
+  state.moves.forEach((m, i) => {
+    if (m.outcome !== "correct") lastMiss.set(m.seat, i);
+  });
+  return [...state.players].sort((a, b) => {
+    if (a.seat === state.winnerSeat) return -1;
+    if (b.seat === state.winnerSeat) return 1;
+    if (a.letters !== b.letters) return a.letters - b.letters;
+    return (lastMiss.get(b.seat) ?? -1) - (lastMiss.get(a.seat) ?? -1);
+  });
+}
+
+const ordinal = (n: number) => `${n}${["th", "st", "nd", "rd"][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] ?? "th"}`;
+
+export function challengeShareText(standings: ChallengePlayer[], links: number, youWon: boolean) {
+  const others = standings.length - 1;
+  const place = standings.findIndex((p) => p.isYou) + 1;
+  const medal = ["🏆", "🥈", "🥉"][place - 1] ?? "🎬";
+  const headline = youWon
+    ? `🏆 I beat ${others} ${others === 1 ? "friend" : "friends"} at Movie Horse!`
+    : `${medal} I finished ${ordinal(place)} of ${standings.length} at Movie Horse`;
+  const board = standings.map((p, i) => {
+    const tiles = WORD.split("").map((_, j) => (j < p.letters ? "🟥" : "⬛")).join("");
+    return `${i === 0 ? "🏆" : `${i + 1}.`} ${p.nickname} ${tiles}`;
+  });
+  return [headline, `🔗 ${links}-link chain 🐴`, ...board].join("\n");
+}
+
+function ShareChallenge({
+  state,
+  standings,
+  links,
+  youWon,
+}: {
+  state: ChallengeView;
+  standings: ChallengePlayer[];
+  links: number;
+  youWon: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+  async function share() {
+    const text = challengeShareText(standings, links, youWon);
+    const url = `${window.location.origin}/challenge`;
+    const tail = youWon ? `Think you can beat me? ${url}` : `Play us: ${url}`;
+    track("challenge_shared", { won: youWon, players: state.players.length });
+    try {
+      if (navigator.share) return await navigator.share({ text: `${text}\n${tail}` });
+      await navigator.clipboard.writeText(`${text}\n${tail}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Share sheet dismissed.
+    }
+  }
+  return (
+    <button
+      onClick={share}
+      className="min-h-12 w-full rounded-xl border border-amber-400 text-lg font-bold text-amber-400 active:scale-[0.98]"
+    >
+      {copied ? "Copied!" : youWon ? "📣 Share your win" : "📣 Share result"}
+    </button>
   );
 }

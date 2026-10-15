@@ -15,6 +15,7 @@ export type ChallengePlayer = {
 
 export type ChallengeMove = {
   id: number;
+  seat: number;
   nickname: string;
   prompt: Card;
   guess: string | null;

@@ -81,7 +81,7 @@ async function load(id: string) {
       .select("id, player_id, prompt, guess, outcome, answer")
       .eq("challenge_id", id)
       .order("id", { ascending: false })
-      .limit(40),
+      .limit(300), // enough for a whole game, so final standings and link counts are complete
   ]);
   if (c.error) throw c.error;
   if (!c.data) return null;
@@ -402,6 +402,7 @@ export async function viewChallenge(id: string, playerId: string | null): Promis
     moves: state.moves.map((m) => ({
       id: m.id,
       nickname: nickname(m.player_id),
+      seat: state.players.find((p) => p.player_id === m.player_id)?.seat ?? -1,
       prompt: m.prompt,
       guess: m.guess,
       outcome: m.outcome,
