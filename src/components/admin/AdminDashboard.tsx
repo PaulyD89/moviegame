@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { logout, stats } from "@/app/admin/actions";
+import { useEffect, useRef, useState } from "react";
+import { dismiss, logout, stats } from "@/app/admin/actions";
 import type { AdminStats } from "@/lib/admin";
 
 const REFRESH_MS = 5_000;
@@ -11,7 +11,8 @@ function ago(iso: string, now: number) {
   const s = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
   if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.round(s / 60)}m ago`;
-  return `${Math.round(s / 3600)}h ago`;
+  if (s < 86_400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86_400)}d ago`;
 }
 
 export function AdminDashboard() {
@@ -20,6 +21,7 @@ export function AdminDashboard() {
   const [loadedAt, setLoadedAt] = useState(0);
   const [now, setNow] = useState(0);
   const [error, setError] = useState(false);
+  const refresh = useRef<() => void>(() => {});
 
   useEffect(() => {
     let active = true;
@@ -32,6 +34,7 @@ export function AdminDashboard() {
           setError(false);
         })
         .catch(() => active && setError(true));
+    refresh.current = load;
     load();
     const poll = setInterval(load, REFRESH_MS);
     const tick = setInterval(() => setNow(Date.now()), 1000);
@@ -63,7 +66,7 @@ export function AdminDashboard() {
         </div>
       </header>
 
-      <ErrorBanner errors={data.errors} now={now || loadedAt} />
+      <ErrorBanner errors={data.errors} now={now || loadedAt} onChange={() => refresh.current()} />
 
       <Section title="Live right now">
         <Tile label="Live games" value={data.live_games} hint="someone on screen in the last 30s" big />
@@ -139,33 +142,68 @@ export function AdminDashboard() {
   );
 }
 
-/** Red when anything broke in the last 24 hours, with the latest errors; green otherwise. */
-function ErrorBanner({ errors, now }: { errors: AdminStats["errors"]; now: number }) {
-  if (errors.count24h === 0) {
+/** Red while there are errors you haven't dismissed; green otherwise. Dismissed ones stay in the log. */
+function ErrorBanner({ errors, now, onChange }: { errors: AdminStats["errors"]; now: number; onChange: () => void }) {
+  const [hidden, setHidden] = useState<Set<number>>(new Set());
+  const open = errors.open.filter((e) => !hidden.has(e.id));
+  // Only count dismissals still in this list (after a refresh, dismissed ones are already gone from it).
+  const remaining = errors.openCount - (errors.open.length - open.length);
+
+  async function dismissOne(id: number) {
+    setHidden((h) => new Set(h).add(id));
+    await dismiss(id).catch(() => {});
+    onChange();
+  }
+  async function dismissAll() {
+    setHidden(new Set(errors.open.map((e) => e.id)));
+    await dismiss().catch(() => {});
+    onChange();
+  }
+
+  if (remaining === 0 || open.length === 0) {
     return (
       <p className="rounded-xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300 ring-1 ring-emerald-500/40">
-        ✓ No errors in the last 24 hours
+        ✓ No new errors
+        {errors.dismissedThisWeek > 0 && (
+          <span className="text-emerald-300/70"> · {errors.dismissedThisWeek} dismissed this week</span>
+        )}
       </p>
     );
   }
   return (
     <section className="rounded-xl bg-red-500/10 p-4 ring-1 ring-red-500/60" role="alert">
-      <h2 className="font-semibold text-red-300">
-        ⚠️ {errors.count24h} {errors.count24h === 1 ? "error" : "errors"} in the last 24 hours
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-semibold text-red-300">
+          ⚠️ {remaining} new {remaining === 1 ? "error" : "errors"}
+        </h2>
+        {open.length > 1 && (
+          <button onClick={dismissAll} className="min-h-11 rounded-lg border border-white/15 px-3 text-sm text-zinc-200">
+            Dismiss all
+          </button>
+        )}
+      </div>
       <ul className="mt-2 space-y-2 text-sm">
-        {errors.recent.map((e, i) => (
-          <li key={i} className="rounded-lg bg-black/30 px-3 py-2">
-            <div className="flex flex-wrap gap-x-3 text-xs text-zinc-400">
-              <span>{ago(e.at, now)}</span>
-              <span className="uppercase tracking-wider">{e.source}</span>
-              {e.path && <span className="break-all">{e.path}</span>}
+        {open.map((e) => (
+          <li key={e.id} className="flex items-start gap-3 rounded-lg bg-black/30 px-3 py-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap gap-x-3 text-xs text-zinc-400">
+                <span>{ago(e.at, now)}</span>
+                <span className="uppercase tracking-wider">{e.source}</span>
+                {e.path && <span className="break-all">{e.path}</span>}
+              </div>
+              <div className="mt-0.5 break-words text-zinc-100">{e.message}</div>
             </div>
-            <div className="mt-0.5 break-words text-zinc-100">{e.message}</div>
+            <button
+              onClick={() => dismissOne(e.id)}
+              aria-label="Dismiss this error"
+              className="min-h-11 shrink-0 rounded-lg border border-white/15 px-3 text-xs text-zinc-300"
+            >
+              Dismiss
+            </button>
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-xs text-zinc-400">Send me these and I&apos;ll dig in.</p>
+      <p className="mt-2 text-xs text-zinc-400">Send me these and I&apos;ll dig in. Dismissed errors stay in the log.</p>
     </section>
   );
 }

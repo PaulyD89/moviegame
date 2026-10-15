@@ -75,7 +75,12 @@ export type AdminStats = {
   push_devices: number;
   push_daily: number;
   growth: AdminGrowth;
-  errors: { count24h: number; recent: { at: string; source: string; path: string | null; message: string }[] };
+  errors: {
+    /** Not yet dismissed, from the last 7 days. */
+    open: { id: number; at: string; source: string; path: string | null; message: string }[];
+    openCount: number;
+    dismissedThisWeek: number;
+  };
   activeGames: {
     code: string | null;
     status: "lobby" | "playing";
@@ -88,7 +93,8 @@ export async function getAdminStats(): Promise<AdminStats> {
   const supabase = createAdminClient();
   const today = puzzleNumber(puzzleDate());
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
-  const [stats, games, errorCount, recentErrors, growth] = await Promise.all([
+  const weekAgo = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
+  const [stats, games, openErrors, dismissedErrors, growth] = await Promise.all([
     supabase.rpc("admin_stats", { today_number: today }),
     supabase
       .from("challenges")
@@ -97,8 +103,18 @@ export async function getAdminStats(): Promise<AdminStats> {
       .gte("updated_at", since)
       .order("updated_at", { ascending: false })
       .limit(25),
-    supabase.from("app_errors").select("id", { count: "exact", head: true }).gte("at", since),
-    supabase.from("app_errors").select("at, source, path, message").order("at", { ascending: false }).limit(10),
+    supabase
+      .from("app_errors")
+      .select("id, at, source, path, message", { count: "exact" })
+      .is("dismissed_at", null)
+      .gte("at", weekAgo)
+      .order("at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("app_errors")
+      .select("id", { count: "exact", head: true })
+      .not("dismissed_at", "is", null)
+      .gte("at", weekAgo),
     supabase.rpc("admin_growth", { today_number: today }),
   ]);
   if (growth.error) throw growth.error;
@@ -115,8 +131,9 @@ export async function getAdminStats(): Promise<AdminStats> {
     ...(stats.data as Omit<AdminStats, "puzzleNumber" | "activeGames" | "errors" | "growth">),
     growth: growth.data as AdminGrowth,
     errors: {
-      count24h: errorCount.count ?? 0,
-      recent: (recentErrors.data ?? []) as AdminStats["errors"]["recent"],
+      open: (openErrors.data ?? []) as AdminStats["errors"]["open"],
+      openCount: openErrors.count ?? 0,
+      dismissedThisWeek: dismissedErrors.count ?? 0,
     },
     puzzleNumber: today,
     activeGames: ((games.data ?? []) as GameRow[]).map((g) => ({
@@ -133,4 +150,12 @@ export async function getAdminStats(): Promise<AdminStats> {
         })),
     })),
   };
+}
+
+/** Hide errors from the admin banner (all open ones when no id is given). They stay in the log. */
+export async function dismissErrors(id?: number) {
+  let q = createAdminClient().from("app_errors").update({ dismissed_at: new Date().toISOString() }).is("dismissed_at", null);
+  if (id !== undefined) q = q.eq("id", id);
+  const { error } = await q;
+  if (error) throw error;
 }
