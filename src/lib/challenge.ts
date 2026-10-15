@@ -462,11 +462,26 @@ export async function removeFromLobby(id: string, hostId: string, seat: number) 
 
 /** The player left the screen (closed the app, switched away), so turn alerts should reach them. */
 export async function markAway(id: string, playerId: string) {
-  await db()
-    .from("challenge_players")
-    .update({ last_seen: new Date(Date.now() - LIVE_MS - 1_000).toISOString() })
-    .eq("challenge_id", id)
-    .eq("player_id", playerId);
+  const state = await load(id);
+  const me = state?.players.find((p) => p.player_id === playerId);
+  if (!state || !me) return;
+  const wasWatching = isLive(me, Date.now());
+  const away = new Date(Date.now() - LIVE_MS - 1_000).toISOString();
+  await db().from("challenge_players").update({ last_seen: away }).eq("challenge_id", id).eq("player_id", playerId);
+
+  // Leaving while it's your turn: the "your turn" alert was skipped because you were watching,
+  // so send it now (once per leave) or the game just sits there.
+  const { challenge } = state;
+  if (wasWatching && challenge.status === "playing" && challenge.turn_seat === me.seat && challenge.card) {
+    const last = state.moves.at(-1);
+    const mover = last && state.players.find((p) => p.player_id === last.player_id);
+    notifyLater(
+      [{ ...me, last_seen: away }],
+      "🐴 Still your turn!",
+      `${mover ? `${mover.nickname} is waiting. ` : ""}${promptLine(challenge.card)}`,
+      id,
+    );
+  }
 }
 
 /** Read a challenge for one player. Also records that they're watching and enforces the shot clock. */
