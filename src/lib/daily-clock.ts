@@ -4,9 +4,17 @@
  */
 const ZONE = "America/New_York";
 
-/** Today's puzzle date, YYYY-MM-DD, in Eastern time. */
+/**
+ * Today's puzzle date, YYYY-MM-DD, in Eastern time. Built from parts: some phones (Android
+ * in-app browsers) format "en-CA" dates as 10/15/2026 instead of 2026-10-15.
+ */
 export function puzzleDate(now = new Date()): string {
-  return now.toLocaleDateString("en-CA", { timeZone: ZONE });
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: ZONE, year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(now)
+      .map((p) => [p.type, p.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 /** Milliseconds until the next puzzle (next midnight Eastern). */

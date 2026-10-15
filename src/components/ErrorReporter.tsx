@@ -23,6 +23,10 @@ export function ErrorReporter() {
       return `${name} on ${device}${homeScreen}`;
     };
     const onError = (e: ErrorEvent) => {
+      // Skip errors from other companies' code: in-app browsers (Instagram, Facebook) and
+      // extensions inject scripts that throw when the user closes them. Ours come from this site.
+      const ours = !e.filename || e.filename.startsWith(location.origin);
+      if (!ours || (e.message === "Script error." && !e.filename)) return;
       const where = e.filename ? ` @ ${e.filename.replace(location.origin, "")}:${e.lineno}:${e.colno}` : "";
       report(`${e.message}${where} [${browser()}]`);
     };
