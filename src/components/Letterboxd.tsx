@@ -36,9 +36,11 @@ export function LetterboxdLink({ movieId, href }: { movieId: number; href?: stri
       target="_blank"
       rel="noopener noreferrer"
       onClick={() => track("letterboxd_film_opened")}
-      className="mt-0.5 inline-block text-[11px] text-zinc-400 underline underline-offset-2"
+      aria-label="Open on Letterboxd"
+      className="mt-1 inline-block rounded-md p-1 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 active:scale-95"
     >
-      Letterboxd ↗
+      {/* eslint-disable-next-line @next/next/no-img-element -- tiny static badge */}
+      <img src="/letterboxd-logo.png" alt="Letterboxd" width={54} height={29} className="block rounded-sm" />
     </a>
   );
 }
