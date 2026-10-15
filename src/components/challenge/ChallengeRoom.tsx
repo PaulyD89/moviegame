@@ -269,7 +269,7 @@ function InviteButton({
     const url = window.location.origin + window.location.pathname;
     const text =
       `${host} challenged you to Movie Horse 🐴 Name actors & movies. Don't spell M-O-V-I-E.` +
-      (code ? ` Game code: ${code}` : "");
+      (code ? ` Game code: ${code}\nAlready play? Open Movie Horse → VS → Join with code.` : "");
     try {
       if (navigator.share) return await navigator.share({ title: "Movie Horse", text, url });
       await navigator.clipboard.writeText(`${text}\n${url}`);
