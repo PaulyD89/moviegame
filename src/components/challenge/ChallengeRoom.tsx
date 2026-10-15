@@ -17,7 +17,7 @@ import { WORD, type Card } from "@/lib/types";
 import { Logo } from "../Logo";
 import { NotifyButton } from "../push/NotifyButton";
 import { recordChallenge } from "../storage";
-import { LetterboxdLink } from "../Letterboxd";
+import { LetterboxdLink, useLetterboxdLinks } from "../Letterboxd";
 import { UsedWarning } from "../UsedWarning";
 import { backupAfterGame } from "../progress/snapshot";
 import { markResultSeen, rememberGame } from "./myGames";
@@ -718,6 +718,7 @@ function Finished({ state, reload }: { state: ChallengeView; reload: () => Promi
   }, [me, state.id, youWon]);
   const standings = finalStandings(state);
   const chain = state.moves.filter((m) => m.outcome === "correct" && m.answer);
+  const filmLinks = useLetterboxdLinks(chain.filter((m) => m.answer!.kind === "movie").map((m) => m.answer!.id));
 
   return (
     <div className="flex w-full flex-col items-center gap-5">
@@ -759,7 +760,7 @@ function Finished({ state, reload }: { state: ChallengeView; reload: () => Promi
                   )}
                 </div>
                 <div className="mt-1 line-clamp-2 text-[11px] text-zinc-300">{m.answer!.name}</div>
-                {m.answer!.kind === "movie" && <LetterboxdLink movieId={m.answer!.id} />}
+                {m.answer!.kind === "movie" && <LetterboxdLink movieId={m.answer!.id} href={filmLinks[m.answer!.id]} />}
               </li>
             ))}
           </ol>

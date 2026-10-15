@@ -10,7 +10,7 @@ import { msUntilNextPuzzle } from "@/lib/daily-clock";
 import { LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
 import { Logo } from "./Logo";
-import { LetterboxdLink, LetterboxdListButton } from "./Letterboxd";
+import { LetterboxdLink, LetterboxdListButton, useLetterboxdLinks } from "./Letterboxd";
 import { StatsSheet } from "./StatsSheet";
 import { NotifyButton } from "./push/NotifyButton";
 import { ReminderNudge } from "./push/ReminderNudge";
@@ -93,6 +93,7 @@ export function Results({ game }: { game: SavedGame }) {
     ]),
     ...(won ? [] : [{ ...game.card, fast: false }]),
   ];
+  const filmLinks = useLetterboxdLinks(chainMovies(chain).map((m) => m.id));
   const ms = duration(game);
   const pts = points(game);
   const perfect = isPerfect(game);
@@ -159,7 +160,7 @@ export function Results({ game }: { game: SavedGame }) {
               )}
             </div>
             <div className="mt-1 line-clamp-2 text-xs text-zinc-300">{node.name}</div>
-            {node.kind === "movie" && <LetterboxdLink movieId={node.id} />}
+            {node.kind === "movie" && <LetterboxdLink movieId={node.id} href={filmLinks[node.id]} />}
           </li>
         ))}
       </ol>

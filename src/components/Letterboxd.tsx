@@ -1,17 +1,38 @@
 "use client";
 
 import { track } from "@vercel/analytics";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { filmLinks } from "@/app/letterboxd/actions";
 import type { Card } from "@/lib/types";
 
 /** Letterboxd opens a film page straight from its TMDB id. */
 export const letterboxdUrl = (movieId: number) => `https://letterboxd.com/tmdb/${movieId}/`;
 
+/**
+ * Direct film links for a set of movies, looked up once. Until they arrive (or if one can't be
+ * found) links use Letterboxd's TMDB shortcut, which opens the website instead of the app.
+ */
+export function useLetterboxdLinks(movieIds: number[]) {
+  const [links, setLinks] = useState<Record<number, string>>({});
+  const key = movieIds.join(",");
+  useEffect(() => {
+    if (!key) return;
+    let active = true;
+    filmLinks(key.split(",").map(Number))
+      .then((l) => active && setLinks(l))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [key]);
+  return links;
+}
+
 /** Small "Letterboxd ↗" link for a movie in a finished chain. */
-export function LetterboxdLink({ movieId }: { movieId: number }) {
+export function LetterboxdLink({ movieId, href }: { movieId: number; href?: string }) {
   return (
     <a
-      href={letterboxdUrl(movieId)}
+      href={href ?? letterboxdUrl(movieId)}
       target="_blank"
       rel="noopener noreferrer"
       onClick={() => track("letterboxd_film_opened")}
