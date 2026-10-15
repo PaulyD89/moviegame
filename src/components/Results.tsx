@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { useEffect, useState } from "react";
-import { myDailyRank } from "@/app/actions";
+import { myAnswerStats, myDailyRank } from "@/app/actions";
+import type { LinkCompare } from "@/lib/answer-stats";
 import { msUntilNextPuzzle } from "@/lib/daily-clock";
 import { LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
@@ -73,6 +74,7 @@ export function Results({ game }: { game: SavedGame }) {
   const [stats] = useState<Stats>(loadStats);
   const [copied, setCopied] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const card = useShareCard(game);
 
   const won = game.status === "won";
   const { oldest, newest, decades, deepCut } = insights(game);
@@ -90,9 +92,16 @@ export function Results({ game }: { game: SavedGame }) {
 
   async function share() {
     const text = shareText(game);
-    track("result_shared");
     const url = window.location.origin;
+    // The picture is fetched ahead of time: iPhones only open the share sheet straight from a tap.
+    const files = card ? [card] : [];
+    const withImage = files.length > 0 && !!navigator.canShare?.({ files });
+    track("result_shared", { image: withImage });
     try {
+      if (withImage) {
+        await navigator.share({ files, text: `${text}\n${url}` });
+        return;
+      }
       if (navigator.share) {
         await navigator.share({ text: `${text}\n${url}` });
         return;
@@ -155,6 +164,8 @@ export function Results({ game }: { game: SavedGame }) {
         personalBest={personalBest}
       />
 
+      <HowYouCompare number={game.number} />
+
       <dl className="grid w-full grid-cols-2 gap-3 text-sm">
         {decades.length > 0 && (
           <Insight label="Decades covered" value={decades.map((d) => `${d}s`).join(" · ")} />
@@ -196,6 +207,69 @@ export function Results({ game }: { game: SavedGame }) {
       <NextPuzzle />
       <NotifyButton mode="daily" />
     </div>
+  );
+}
+
+/** Today's result as a picture to share, ready before the tap (server-scored games only). */
+function useShareCard(game: SavedGame) {
+  const [file, setFile] = useState<File | null>(null);
+  const serverScored = typeof game.durationMs === "number";
+  useEffect(() => {
+    if (!serverScored) return;
+    let active = true;
+    fetch("/api/share/daily", { cache: "no-store" })
+      .then((r) => (r.ok ? r.blob() : null))
+      .then((blob) => {
+        if (active && blob) setFile(new File([blob], `movie-horse-${game.number}.png`, { type: "image/png" }));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [serverScored, game.number]);
+  return file;
+}
+
+/** How your answers stacked up against everyone's today. Hidden until enough people have played. */
+function HowYouCompare({ number }: { number: number }) {
+  const [rows, setRows] = useState<LinkCompare[]>([]);
+  useEffect(() => {
+    let active = true;
+    myAnswerStats(number)
+      .then((r) => active && setRows(r))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [number]);
+  if (rows.length === 0) return null;
+  const rarest = rows.reduce((a, b) => (b.pct < a.pct ? b : a));
+
+  return (
+    <section className="w-full">
+      <h3 className="mb-2 text-xs uppercase tracking-widest text-zinc-300">How you compare</h3>
+      {rarest.pct <= 10 && (
+        <p className="mb-2 rounded-xl bg-amber-400/15 px-4 py-3 text-sm text-amber-200 ring-1 ring-amber-400/50">
+          🦄 Rare pick! Only <b className="text-white">{rarest.pct}%</b> said {rarest.answer.name} for{" "}
+          {rarest.prompt.name}.
+        </p>
+      )}
+      <ul className="space-y-1.5">
+        {rows.map((r) => (
+          <li key={`${r.prompt.kind}-${r.prompt.id}`} className="rounded-xl bg-white/5 px-4 py-2.5 text-sm">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 truncate text-zinc-300">
+                {r.prompt.name} → <b className="text-white">{r.answer.name}</b>
+              </span>
+              <span className="shrink-0 font-semibold text-amber-400">{r.pct}%</span>
+            </div>
+            <div className="text-xs text-zinc-400">
+              {r.top ? `Most said ${r.top.name} (${r.top.pct}%)` : "👑 The most popular answer"}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

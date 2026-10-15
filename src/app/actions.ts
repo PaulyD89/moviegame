@@ -1,6 +1,7 @@
 "use server";
 
 import { puzzleDate, puzzleNumber } from "@/lib/daily-clock";
+import { answerStats } from "@/lib/answer-stats";
 import { dailyRank } from "@/lib/daily-log";
 import { openDaily, playDaily, type DailyState } from "@/lib/daily-play";
 import { playerId } from "@/lib/player";
@@ -46,4 +47,13 @@ export async function myDailyRank(puzzle: number) {
 export async function myGlobalRank() {
   const pid = await playerId(false);
   return pid ? globalRank(pid) : null;
+}
+
+/** How this player's answers in a finished daily compare with everyone's. */
+export async function myAnswerStats(puzzle: number) {
+  const day = 86_400_000;
+  const allowed = [-day, 0, day].map((o) => puzzleNumber(puzzleDate(new Date(Date.now() + o))));
+  if (!Number.isInteger(puzzle) || !allowed.includes(puzzle)) return [];
+  const pid = await playerId(false);
+  return pid ? answerStats(puzzle, pid) : [];
 }

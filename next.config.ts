@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  // The share-card route reads its font and logo from disk.
+  outputFileTracingIncludes: { "/api/share/daily": ["./assets/**"] },
   partialPrefetching: true,
   images: {
     // TMDB already serves sized images from its CDN.
