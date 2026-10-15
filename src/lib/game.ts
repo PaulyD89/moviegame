@@ -1,5 +1,5 @@
 import "server-only";
-import { puzzleNumber } from "./daily-clock";
+import { puzzleDate, puzzleNumber } from "./daily-clock";
 import { closeness, nameKey, nicknameKey, soundsLike, titleKey } from "./normalize";
 import {
   getAltTitles,
@@ -51,7 +51,23 @@ function hash(s: string) {
 
 /** The game never shows movies before 1970, and shows 1970s ones half as often. */
 const MIN_YEAR = 1970;
-const yearWeight = (year?: number) => (!year || year < MIN_YEAR ? 0 : year < 1980 ? 0.5 : 1);
+
+/**
+ * Picks lean toward the movies 25-to-55-year-olds grew up with (90s and 2000s most), with the
+ * 70s and 2020s lighter. Took effect with puzzle #3 (2026-10-16) so #2 stayed consistent all day.
+ */
+const AUDIENCE_RULES_FROM = "2026-10-16";
+const DECADE_WEIGHT: Record<number, number> = { 1970: 1 / 3, 1980: 1, 1990: 1.3, 2000: 1.3, 2010: 1, 2020: 0.7 };
+
+/** The day a pick belongs to: daily seeds start with the puzzle date; challenges use today. */
+const rulesDate = (seed: string) => /^\d{4}-\d{2}-\d{2}/.exec(seed)?.[0] ?? puzzleDate();
+const audienceRules = (seed: string) => rulesDate(seed) >= AUDIENCE_RULES_FROM;
+
+function yearWeight(year?: number, seed?: string) {
+  if (!year || year < MIN_YEAR) return 0;
+  if (seed && audienceRules(seed)) return DECADE_WEIGHT[Math.min(2020, Math.floor(year / 10) * 10)] ?? 1;
+  return year < 1980 ? 0.5 : 1;
+}
 
 /**
  * Weighted pick that's repeatable: same seed + same candidates = same pick, so players
@@ -102,7 +118,7 @@ async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string)
       .filter((c) => c.vote_count >= minVotes)
       .sort((a, b) => b.vote_count - a.vote_count)
       .slice(0, 12);
-    const pick = pickWeighted(famous, seed, (c) => yearWeight(yearOf(c.release_date)));
+    const pick = pickWeighted(famous, seed, (c) => yearWeight(yearOf(c.release_date), seed));
     if (pick) return movieCard(await getMovie(pick.id));
   }
   return null;
@@ -127,9 +143,20 @@ async function nextPersonFor(movie: TmdbMovie, used: Set<string>, seed: string):
   for (const maxOrder of [6, 12, 30]) {
     const tier = cast.filter((c) => c.order < maxOrder);
     if (tier.length === 0) continue;
-    const people = await Promise.all(tier.map((c) => getPerson(c.id).catch(() => null)));
-    const classic = people.filter((p): p is TmdbPerson => !!p && isClassic(p));
-    const current = people.filter((p): p is TmdbPerson => !!p && !isClassic(p));
+    const people = (await Promise.all(tier.map((c) => getPerson(c.id).catch(() => null)))).filter(
+      (p): p is TmdbPerson => !!p,
+    );
+    if (audienceRules(seed)) {
+      // Recognizable actors come up more, but not every time: weight grows with the square root
+      // of their well-known films (a lead star ~2x a working character actor, ~10x an unknown).
+      // Classic actors count a third as much, which keeps them to about a quarter of picks.
+      const weight = (p: TmdbPerson) => (1 + 2 * Math.sqrt(famousCredits(p))) * (isClassic(p) ? 1 / 3 : 1);
+      const pick = pickWeighted(people, seed, weight);
+      if (pick) return personCard(pick);
+      continue;
+    }
+    const classic = people.filter(isClassic);
+    const current = people.filter((p) => !isClassic(p));
     const [first, second] = wantClassic ? [classic, current] : [current, classic];
     const pick = pickWeighted(first.length ? first : second, seed, () => 1);
     if (pick) return personCard(pick);
@@ -141,16 +168,16 @@ async function nextPersonFor(movie: TmdbMovie, used: Set<string>, seed: string):
  * Weight starter movies so each decade gets an equal share of picks (the '70s half a share),
  * however many movies of that decade are left.
  */
-function decadeBalanced(pool: StarterMovie[]) {
+function decadeBalanced(pool: StarterMovie[], seed: string) {
   const perDecade = new Map<number, number>();
   for (const m of pool) perDecade.set(m.decade, (perDecade.get(m.decade) ?? 0) + 1);
-  return (m: StarterMovie) => yearWeight(m.decade) / perDecade.get(m.decade)!;
+  return (m: StarterMovie) => yearWeight(m.decade, seed) / perDecade.get(m.decade)!;
 }
 
 /** Fresh card of the given kind, for dead ends, passes, and new chains in challenges. */
 async function freshCard(kind: Card["kind"], used: Set<string>, seed: string): Promise<Card> {
   const pool = (await getStarterPool()).filter((m) => !used.has(cardKey({ kind: "movie", id: m.id })));
-  const pick = pickWeighted(pool, seed, decadeBalanced(pool))!;
+  const pick = pickWeighted(pool, seed, decadeBalanced(pool, seed))!;
   const movie = await getMovie(pick.id);
   if (kind === "movie") return movieCard(movie);
   used.add(cardKey({ kind: "movie", id: movie.id }));
@@ -206,7 +233,7 @@ export async function dailyStart(dateStr: string): Promise<{ number: number; car
   let pool = (await getStarterPool()).filter((m) => isHeadliner(m) && !usedMovies.has(m.id));
   // Stars first; if none qualify after many tries, fall back to the looser rule so a day is never empty.
   for (let attempt = 0; attempt < 35 && pool.length > 0; attempt++) {
-    const pick = pickWeighted(pool, `${dateStr}:${attempt}`, decadeBalanced(pool))!;
+    const pick = pickWeighted(pool, `${dateStr}:${attempt}`, decadeBalanced(pool, dateStr))!;
     const movie = await getMovie(pick.id);
     const lead = kind === "person" ? await leadActor(movie, usedPeople, attempt < 25) : null;
     if (kind === "person" && !lead) {
