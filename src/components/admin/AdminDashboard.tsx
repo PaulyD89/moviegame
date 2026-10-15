@@ -77,7 +77,7 @@ export function AdminDashboard() {
         <Tile label="Avg links" value={data.daily_avg_links ?? "–"} />
       </Section>
 
-      <PlaysChart days={data.daily_last7} />
+      <Growth growth={data.growth} />
 
       <Section title="Challenges">
         <Tile label="In progress" value={data.games_in_progress} />
@@ -189,21 +189,71 @@ function Tile({ label, value, hint, big }: { label: string; value: number | stri
   );
 }
 
-/** Daily players over the last 7 puzzles. One series, so no legend; tap or hover a bar for details. */
-function PlaysChart({ days }: { days: AdminStats["daily_last7"] }) {
+const SERIES = [
+  { key: "new", label: "New", swatch: "bg-sky-400" },
+  { key: "returning", label: "Played yesterday too", swatch: "bg-amber-400" },
+  { key: "back", label: "Back after a break", swatch: "bg-zinc-500" },
+] as const;
+
+const shortDate = (iso: string) =>
+  new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
+/** Is it growing? All-time totals, who's coming back, and the last 30 days. */
+function Growth({ growth }: { growth: AdminStats["growth"] }) {
+  const { days, totals } = growth;
+  const today = days.at(-1);
+  const cameBack = today && today.prev_players ? `${Math.round((today.returning / today.prev_players) * 100)}%` : "–";
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-xs uppercase tracking-widest text-zinc-300">Growth</h2>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Tile label="All-time players" value={totals.players} hint="daily or challenges" />
+        <Tile label="Came back today" value={cameBack} hint={today ? `${today.returning} of yesterday's ${today.prev_players}` : undefined} />
+        <Tile label="Dailies finished" value={totals.daily_games} hint="all time" />
+        <Tile label="Challenges" value={totals.challenges} hint={`${totals.challenges_finished} finished`} />
+      </div>
+      <GrowthChart days={days} />
+      <GrowthTable days={days} />
+    </section>
+  );
+}
+
+/** Daily players per puzzle, split into new, returning and back-after-a-break. Tap a bar for numbers. */
+function GrowthChart({ days }: { days: AdminStats["growth"]["days"] }) {
   const [active, setActive] = useState<number | null>(null);
-  const max = Math.max(1, ...days.map((d) => d.started));
-  const peak = days.reduce((a, b) => (b.started > a.started ? b : a), days[0]);
-  const latest = days.at(-1)?.number;
+  const max = Math.max(1, ...days.map((d) => d.players));
+  const shown = days.find((d) => d.number === active) ?? days.at(-1);
+  const parts = (d: (typeof days)[number]) => ({
+    new: d.new_players,
+    returning: d.returning,
+    back: Math.max(0, d.players - d.new_players - d.returning),
+  });
 
   return (
-    <figure>
-      <figcaption className="mb-2 text-xs uppercase tracking-widest text-zinc-300">
-        Daily players, last {days.length} {days.length === 1 ? "puzzle" : "puzzles"}
+    <figure className="rounded-xl bg-white/5 p-3">
+      <figcaption className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-sm text-zinc-200">Daily players, last {days.length} {days.length === 1 ? "day" : "days"}</span>
+        <span className="flex flex-wrap gap-3 text-xs text-zinc-300">
+          {SERIES.map((s) => (
+            <span key={s.key} className="inline-flex items-center gap-1.5">
+              <span className={`h-2.5 w-2.5 rounded-sm ${s.swatch}`} aria-hidden />
+              {s.label}
+            </span>
+          ))}
+        </span>
       </figcaption>
-      <div className="flex h-36 items-end gap-0.5 rounded-xl bg-white/5 px-3 pt-4 pb-0">
+      {shown && (
+        <p className="mt-2 text-xs text-zinc-300" aria-live="polite">
+          <b className="text-white">
+            #{shown.number} · {shortDate(shown.date)}:
+          </b>{" "}
+          {shown.players} {shown.players === 1 ? "player" : "players"} ({parts(shown).new} new, {parts(shown).returning} played
+          yesterday too, {parts(shown).back} back after a break)
+        </p>
+      )}
+      <div className="mt-3 flex h-32 items-end gap-0.5">
         {days.map((d) => {
-          const show = d.number === active || d.number === latest || d === peak;
+          const p = parts(d);
           return (
             <button
               key={d.number}
@@ -211,30 +261,75 @@ function PlaysChart({ days }: { days: AdminStats["daily_last7"] }) {
               onClick={() => setActive(active === d.number ? null : d.number)}
               onMouseEnter={() => setActive(d.number)}
               onMouseLeave={() => setActive(null)}
-              aria-label={`Puzzle ${d.number}: ${d.started} started, ${d.finished} finished`}
-              className="relative flex h-full flex-1 flex-col items-center justify-end outline-none"
+              aria-label={`Puzzle ${d.number}: ${d.players} players, ${p.new} new, ${p.returning} returning, ${p.back} back after a break`}
+              className={`flex h-full min-w-0 flex-1 flex-col justify-end gap-[2px] outline-none ${
+                active === d.number ? "opacity-100" : active === null ? "opacity-100" : "opacity-60"
+              }`}
             >
-              {active === d.number && (
-                <span className="absolute -top-1 z-10 -translate-y-full whitespace-nowrap rounded-md bg-zinc-800 px-2 py-1 text-xs text-white ring-1 ring-white/15">
-                  #{d.number}: {d.started} started · {d.finished} finished
-                </span>
+              {d.players === 0 ? (
+                <span className="h-0.5 w-full max-w-10 self-center rounded-t bg-white/15" />
+              ) : (
+                (["back", "returning", "new"] as const).map((k) =>
+                  p[k] ? (
+                    <span
+                      key={k}
+                      className={`w-full max-w-10 self-center first:rounded-t ${SERIES.find((s) => s.key === k)!.swatch}`}
+                      style={{ height: `${(p[k] / max) * 100}%` }}
+                    />
+                  ) : null,
+                )
               )}
-              {show && d.started > 0 && <span className="mb-0.5 text-xs font-semibold text-white">{d.started}</span>}
-              <span
-                className={`w-full max-w-10 rounded-t ${d.number === latest ? "bg-amber-400" : "bg-amber-400/45"}`}
-                style={{ height: d.started ? `${(d.started / max) * 80}%` : "2px" }}
-              />
             </button>
           );
         })}
       </div>
-      <div className="flex gap-0.5 border-t border-white/15 px-3 pt-1">
-        {days.map((d) => (
-          <span key={d.number} className="flex-1 text-center text-xs text-zinc-400">
-            #{d.number}
-          </span>
-        ))}
+      <div className="mt-1 flex justify-between border-t border-white/15 pt-1 text-xs text-zinc-400">
+        <span>#{days[0]?.number}</span>
+        {days.length > 1 && <span>#{days.at(-1)?.number}</span>}
       </div>
     </figure>
+  );
+}
+
+/** Day-by-day numbers, newest first. */
+function GrowthTable({ days }: { days: AdminStats["growth"]["days"] }) {
+  const cols = ["Day", "Active", "Daily", "New", "Came back", "Won", "Challenges", "Rematches"];
+  return (
+    <div className="overflow-x-auto rounded-xl ring-1 ring-white/10">
+      <table className="w-full text-left text-sm tabular-nums">
+        <thead className="bg-white/5 text-xs uppercase tracking-wider text-zinc-300">
+          <tr>
+            {cols.map((c, i) => (
+              <th key={c} className={`whitespace-nowrap px-3 py-2 ${i ? "text-right" : ""}`}>
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {[...days].reverse().map((d) => (
+            <tr key={d.number} className="border-t border-white/5">
+              <td className="whitespace-nowrap px-3 py-2">
+                #{d.number} <span className="text-zinc-400">{shortDate(d.date)}</span>
+              </td>
+              <td className="px-3 py-2 text-right font-semibold text-white">{d.active}</td>
+              <td className="px-3 py-2 text-right">{d.players}</td>
+              <td className="px-3 py-2 text-right">{d.new_players}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-right">
+                {d.prev_players ? `${d.returning} (${Math.round((d.returning / d.prev_players) * 100)}%)` : "–"}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2 text-right">
+                {d.won}/{d.finished}
+              </td>
+              <td className="px-3 py-2 text-right">{d.challenges}</td>
+              <td className="px-3 py-2 text-right">{d.rematches}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="px-3 py-2 text-xs text-zinc-400">
+        Active = played the daily or a challenge that day (Eastern time). Came back = also played the day before.
+      </p>
+    </div>
   );
 }

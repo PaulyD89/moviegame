@@ -39,6 +39,25 @@ export async function endAdminSession() {
   (await cookies()).delete(COOKIE);
 }
 
+export type GrowthDay = {
+  number: number;
+  date: string;
+  players: number;
+  finished: number;
+  won: number;
+  new_players: number;
+  returning: number;
+  prev_players: number;
+  active: number;
+  challenges: number;
+  rematches: number;
+};
+
+export type AdminGrowth = {
+  days: GrowthDay[];
+  totals: { players: number; daily_games: number; challenges: number; challenges_finished: number };
+};
+
 export type AdminStats = {
   puzzleNumber: number;
   live_games: number;
@@ -55,6 +74,7 @@ export type AdminStats = {
   daily_last7: { number: number; started: number; finished: number }[];
   push_devices: number;
   push_daily: number;
+  growth: AdminGrowth;
   errors: { count24h: number; recent: { at: string; source: string; path: string | null; message: string }[] };
   activeGames: {
     code: string | null;
@@ -68,7 +88,7 @@ export async function getAdminStats(): Promise<AdminStats> {
   const supabase = createAdminClient();
   const today = puzzleNumber(puzzleDate());
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
-  const [stats, games, errorCount, recentErrors] = await Promise.all([
+  const [stats, games, errorCount, recentErrors, growth] = await Promise.all([
     supabase.rpc("admin_stats", { today_number: today }),
     supabase
       .from("challenges")
@@ -79,7 +99,9 @@ export async function getAdminStats(): Promise<AdminStats> {
       .limit(25),
     supabase.from("app_errors").select("id", { count: "exact", head: true }).gte("at", since),
     supabase.from("app_errors").select("at, source, path, message").order("at", { ascending: false }).limit(10),
+    supabase.rpc("admin_growth", { today_number: today }),
   ]);
+  if (growth.error) throw growth.error;
   if (stats.error) throw stats.error;
   const now = Date.now();
   type GameRow = {
@@ -90,7 +112,8 @@ export async function getAdminStats(): Promise<AdminStats> {
     challenge_players: { nickname: string; letters: number; seat: number; last_seen: string }[];
   };
   return {
-    ...(stats.data as Omit<AdminStats, "puzzleNumber" | "activeGames" | "errors">),
+    ...(stats.data as Omit<AdminStats, "puzzleNumber" | "activeGames" | "errors" | "growth">),
+    growth: growth.data as AdminGrowth,
     errors: {
       count24h: errorCount.count ?? 0,
       recent: (recentErrors.data ?? []) as AdminStats["errors"]["recent"],
