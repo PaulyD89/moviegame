@@ -42,6 +42,8 @@ export type TmdbPerson = {
   name: string;
   /** Other names they've been credited under. */
   also_known_as?: string[];
+  birthday?: string | null;
+  deathday?: string | null;
   profile_path: string | null;
   popularity: number;
   imdb_id: string | null;

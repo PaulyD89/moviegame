@@ -90,7 +90,14 @@ async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string)
   return null;
 }
 
-/** A top-billed actor in this movie who hasn't been used yet. */
+/** Actors who've died or were born before 1940 often show up in old black-and-white photos. */
+const CLASSIC_SHARE = 0.25;
+const isClassic = (p: TmdbPerson) => !!p.deathday || Number(p.birthday?.slice(0, 4) ?? 9999) < 1940;
+
+/**
+ * A top-billed actor in this movie who hasn't been used yet. About a quarter of picks may be
+ * classic (deceased or born before 1940); the rest come from current actors when the cast has them.
+ */
 async function nextPersonFor(movie: TmdbMovie, used: Set<string>, seed: string): Promise<Card | null> {
   const cast = movie.credits.cast.filter(
     (c) =>
@@ -98,9 +105,16 @@ async function nextPersonFor(movie: TmdbMovie, used: Set<string>, seed: string):
       !used.has(cardKey({ kind: "person", id: c.id })) &&
       !NOT_A_ROLE.test(c.character ?? ""),
   );
+  const wantClassic = hash(`${seed}:era`) / 2 ** 32 < CLASSIC_SHARE;
   for (const maxOrder of [6, 12, 30]) {
-    const pick = pickWeighted(cast.filter((c) => c.order < maxOrder), seed, () => 1);
-    if (pick) return personCard(await getPerson(pick.id));
+    const tier = cast.filter((c) => c.order < maxOrder);
+    if (tier.length === 0) continue;
+    const people = await Promise.all(tier.map((c) => getPerson(c.id).catch(() => null)));
+    const classic = people.filter((p): p is TmdbPerson => !!p && isClassic(p));
+    const current = people.filter((p): p is TmdbPerson => !!p && !isClassic(p));
+    const [first, second] = wantClassic ? [classic, current] : [current, classic];
+    const pick = pickWeighted(first.length ? first : second, seed, () => 1);
+    if (pick) return personCard(pick);
   }
   return null;
 }
