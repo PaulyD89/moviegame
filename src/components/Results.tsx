@@ -12,6 +12,7 @@ import { Letters } from "./Game";
 import { Logo } from "./Logo";
 import { StatsSheet } from "./StatsSheet";
 import { NotifyButton } from "./push/NotifyButton";
+import { ReminderNudge } from "./push/ReminderNudge";
 import { isPerfect, loadStats, type SavedGame, type Stats } from "./storage";
 
 function formatTime(ms: number) {
@@ -199,6 +200,7 @@ export function Results({ game }: { game: SavedGame }) {
       >
         {copied ? "Copied!" : "Share result"}
       </button>
+      <ReminderNudge />
       <Link
         href="/challenge"
         className="-mt-2 flex min-h-12 w-full items-center justify-center rounded-xl border border-amber-400 text-lg font-bold text-amber-400 active:scale-[0.98]"

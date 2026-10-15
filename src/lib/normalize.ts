@@ -32,10 +32,78 @@ export function nameKey(s: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/&/g, " and ")
-    .replace(/['’]/g, "")
+    .replace(/['’ʻʼ`´]/g, "")
     .split(/[^a-z0-9]+/)
     .map((word) => SAME_WORD[word] ?? word)
     .join("");
+}
+
+/** First names people swap freely. Each group maps to its first entry. */
+const NICKNAMES = [
+  ["catherine", "cathy", "kathy", "katherine", "kathryn", "cate", "kate", "katie", "kat"],
+  ["michael", "mike", "mick", "mickey"],
+  ["matthew", "matt"],
+  ["christopher", "chris"],
+  ["thomas", "tom", "tommy"],
+  ["james", "jim", "jimmy", "jamie"],
+  ["william", "bill", "billy", "will", "willie"],
+  ["robert", "bob", "bobby", "rob", "robbie", "bert"],
+  ["richard", "rick", "ricky", "dick", "rich"],
+  ["daniel", "dan", "danny"],
+  ["david", "dave", "davey"],
+  ["joseph", "joe", "joey"],
+  ["steven", "stephen", "steve"],
+  ["anthony", "tony"],
+  ["andrew", "andy", "drew"],
+  ["alexander", "alex", "alec"],
+  ["nicholas", "nick", "nicky"],
+  ["benjamin", "ben", "benny"],
+  ["jonathan", "jon"],
+  ["john", "johnny"],
+  ["joshua", "josh"],
+  ["zachary", "zach", "zack"],
+  ["samuel", "sam", "sammy"],
+  ["edward", "ed", "eddie", "ted", "teddy"],
+  ["jennifer", "jen", "jenny"],
+  ["elizabeth", "liz", "lizzy", "beth", "betty", "eliza"],
+  ["margaret", "maggie", "meg", "peggy"],
+  ["rebecca", "becky"],
+  ["susan", "sue", "susie"],
+  ["deborah", "debra", "debbie", "deb"],
+  ["patricia", "pat", "patty", "tricia"],
+  ["abigail", "abby"],
+  ["alexandra", "alexis", "lexi"],
+  ["timothy", "tim", "timmy"],
+  ["kenneth", "ken", "kenny"],
+  ["gregory", "greg"],
+  ["jeffrey", "jeff"],
+  ["frederick", "fred", "freddie"],
+  ["lawrence", "larry"],
+  ["raymond", "ray"],
+  ["ronald", "ron", "ronnie"],
+  ["donald", "don", "donnie"],
+  ["leonard", "leo", "len", "lenny"],
+  ["vincent", "vince", "vinnie"],
+  ["philip", "phillip", "phil"],
+  ["gerald", "gerry", "jerry"],
+  ["peter", "pete"],
+];
+const NICK: Record<string, string> = Object.fromEntries(NICKNAMES.flatMap((g) => g.map((n) => [n, g[0]])));
+
+/**
+ * Name key with the first name evened out, so "Cathy Moriarty" = "Catherine Moriarty"
+ * and "Mike Myers" = "Michael Myers". Used alongside nameKey, never instead of it.
+ */
+export function nicknameKey(s: string): string {
+  const words = s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['’ʻʼ`´]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  if (words.length < 2) return "";
+  return [NICK[words[0]] ?? words[0], ...words.slice(1)].join("");
 }
 
 /** Key without a leading article, so "Matrix" matches "The Matrix". */
@@ -98,7 +166,7 @@ const soundWords = (s: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/&/g, " and ")
-    .replace(/['’]/g, "")
+    .replace(/['’ʻʼ`´]/g, "")
     .split(/[^a-z0-9]+/)
     .filter(Boolean)
     .map((w) => SAME_WORD[w] ?? w);

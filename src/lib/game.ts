@@ -1,7 +1,8 @@
 import "server-only";
 import { puzzleNumber } from "./daily-clock";
-import { closeness, nameKey, soundsLike, titleKey } from "./normalize";
+import { closeness, nameKey, nicknameKey, soundsLike, titleKey } from "./normalize";
 import {
+  getAltTitles,
   getMovie,
   getPerson,
   getStarterPool,
@@ -131,18 +132,24 @@ const famousCredits = (p: TmdbPerson) =>
   p.movie_credits.cast.filter((c) => c.vote_count >= 2000 && !NOT_A_ROLE.test(c.character ?? "")).length;
 
 /**
- * For actor days: whichever of the top three billed has the most well-known movies (at least 6,
- * so players have plenty of answers), skipping anyone who already started a day.
+ * For actor days: a true star to open with. One of the top two billed, with at least 12
+ * well-known movies (so it's someone everyone recognizes and has plenty of answers), skipping
+ * anyone who already started a day.
  */
-async function leadActor(movie: TmdbMovie, usedPeople: Set<number>) {
+async function leadActor(movie: TmdbMovie, usedPeople: Set<number>, strict = true) {
+  const topBilled = strict ? 2 : 3;
+  const minFamous = strict ? 12 : 6;
   const billed = movie.credits.cast.filter(
-    (c) => c.order < 3 && c.profile_path && !usedPeople.has(c.id) && !NOT_A_ROLE.test(c.character ?? ""),
+    (c) => c.order < topBilled && c.profile_path && !usedPeople.has(c.id) && !NOT_A_ROLE.test(c.character ?? ""),
   );
   const people = await Promise.all(billed.map((c) => getPerson(c.id)));
   return people
-    .filter((p) => famousCredits(p) >= 6)
+    .filter((p) => famousCredits(p) >= minFamous)
     .sort((a, b) => famousCredits(b) - famousCredits(a))[0];
 }
+
+/** Opening cards come from each decade's very best-known films, so nobody starts on a deep cut. */
+const isHeadliner = (m: StarterMovie) => m.rank < (m.decade === 1970 ? 20 : 40);
 
 /**
  * The puzzle for a date (YYYY-MM-DD, Eastern). Each day's start is chosen once and saved,
@@ -164,11 +171,12 @@ export async function dailyStart(dateStr: string): Promise<{ number: number; car
 
   // Odd puzzles start with a movie, even ones with an actor.
   const kind: Card["kind"] = number % 2 === 0 ? "person" : "movie";
-  let pool = (await getStarterPool()).filter((m) => !usedMovies.has(m.id));
-  for (let attempt = 0; attempt < 10 && pool.length > 0; attempt++) {
+  let pool = (await getStarterPool()).filter((m) => isHeadliner(m) && !usedMovies.has(m.id));
+  // Stars first; if none qualify after many tries, fall back to the looser rule so a day is never empty.
+  for (let attempt = 0; attempt < 35 && pool.length > 0; attempt++) {
     const pick = pickWeighted(pool, `${dateStr}:${attempt}`, decadeBalanced(pool))!;
     const movie = await getMovie(pick.id);
-    const lead = kind === "person" ? await leadActor(movie, usedPeople) : null;
+    const lead = kind === "person" ? await leadActor(movie, usedPeople, attempt < 25) : null;
     if (kind === "person" && !lead) {
       pool = pool.filter((m) => m.id !== pick.id);
       continue;
@@ -214,7 +222,13 @@ export async function matchGuess(card: Card, guess: string, used: Set<string>): 
 
   if (card.kind === "movie") {
     const cast = (await getMovie(card.id)).credits.cast; // already in billing order
+    const guessKeys = [key, nicknameKey(guess)];
     let { best, items } = ranked(cast, (c) => closeness([key], [nameKey(c.name)]));
+    if (items.length === 0) {
+      // A nickname for the first name ("Cathy" for Catherine), only when nothing matched as typed.
+      const nick = ranked(cast, (c) => closeness(guessKeys, [nicknameKey(c.name)]));
+      if (new Set(nick.items.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: nick.items });
+    }
     if (items.length === 0 && key.length >= 4) {
       // Last name only, e.g. "Cruise" for Top Gun, if exactly one cast member has it.
       const byLast = ranked(cast, (c) => closeness([key], [lastName(c.name)]));
@@ -225,6 +239,17 @@ export async function matchGuess(card: Card, guess: string, used: Set<string>): 
       // Spelled by ear ("Kay Huay Quan" for Ke Huy Quan), if it points to exactly one person.
       const heard = cast.filter((c) => soundsLike(guess, c.name));
       if (new Set(heard.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: heard });
+    }
+    if (items.length === 0) {
+      // Another name they've been credited under (the main cast only, to keep lookups cheap).
+      const top = cast.slice(0, 15);
+      const people = await Promise.all(top.map((c) => getPerson(c.id).catch(() => null)));
+      const known = top.filter((c, i) =>
+        (people[i]?.also_known_as ?? []).some(
+          (aka) => closeness(guessKeys, [nameKey(aka), nicknameKey(aka)]) < Infinity || soundsLike(guess, aka),
+        ),
+      );
+      if (new Set(known.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: known });
     }
     if (items.length === 0) return { outcome: "wrong" };
     const answer = personCard(await getPerson(items[0].id));
@@ -250,6 +275,18 @@ export async function matchGuess(card: Card, guess: string, used: Set<string>): 
       (c) => soundsLike(strip(guess), strip(c.title)) || soundsLike(strip(guess), strip(c.title.split(":")[0])),
     );
     if (new Set(heard.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: heard });
+  }
+  if (items.length === 0) {
+    // Another title the film goes by ("The Road Warrior" for Mad Max 2), among their best-known films.
+    const top = credits.slice(0, 40);
+    const alts = await Promise.all(top.map((c) => getAltTitles(c.id).catch(() => [] as string[])));
+    const strip = (s: string) => s.replace(/^\s*(the|a|an)\s+/i, "");
+    const known = top.filter((c, i) =>
+      alts[i].some(
+        (t) => closeness([key, titleKey(guess)], [nameKey(t), titleKey(t)]) < Infinity || soundsLike(strip(guess), strip(t)),
+      ),
+    );
+    if (new Set(known.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: known });
   }
   if (items.length === 0) return { outcome: "wrong" };
 

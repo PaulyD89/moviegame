@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { InstallGuide } from "./InstallGuide";
+import { dismissedBefore } from "./ReminderNudge";
 import { usePush } from "./usePush";
 
 const base =
@@ -21,6 +22,8 @@ export function NotifyButton({ mode, code }: { mode: "challenge" | "daily"; code
     mode === "challenge" ? "🔔 Notify me when it's my turn" : "🔔 Remind me when the next Movie Chain is up";
 
   if (state.kind === "loading" || state.kind === "unsupported") return null;
+  // On the results screen the slim nudge under Share makes this offer; don't make it twice.
+  if (mode === "daily" && !(state.kind === "on" && state.daily) && !dismissedBefore()) return null;
 
   if (state.kind === "denied") {
     return (

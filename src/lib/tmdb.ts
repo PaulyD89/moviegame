@@ -40,6 +40,8 @@ export type TmdbMovie = {
 export type TmdbPerson = {
   id: number;
   name: string;
+  /** Other names they've been credited under. */
+  also_known_as?: string[];
   profile_path: string | null;
   popularity: number;
   imdb_id: string | null;
@@ -66,7 +68,8 @@ export async function getPerson(id: number): Promise<TmdbPerson> {
   return tmdb<TmdbPerson>(`/person/${id}?append_to_response=movie_credits`);
 }
 
-export type StarterMovie = { id: number; title: string; year: number; decade: number };
+/** `rank` = position in its decade by number of votes (0 = best known). */
+export type StarterMovie = { id: number; title: string; year: number; decade: number; rank: number };
 
 // The most-voted lists skew heavily recent, so take each decade's best-known films separately.
 const STARTER_DECADES = [
@@ -89,16 +92,25 @@ export async function getStarterPool(): Promise<StarterMovie[]> {
           `&primary_release_date.gte=${decade}-01-01&primary_release_date.lte=${decade + 9}-12-31` +
           `&page=${i + 1}`,
       ).then((p) =>
-        p.results.map(({ id, title, release_date }) => ({
+        p.results.map(({ id, title, release_date }, j) => ({
           id,
           title,
           year: Number(release_date?.slice(0, 4)),
           decade,
+          rank: i * 20 + j,
         })),
       ),
     ),
   );
   return (await Promise.all(requests)).flat();
+}
+
+/** Other titles a movie goes by ("The Road Warrior" for Mad Max 2). */
+export async function getAltTitles(id: number): Promise<string[]> {
+  "use cache";
+  cacheLife("weeks");
+  const res = await tmdb<{ titles: { title: string }[] }>(`/movie/${id}/alternative_titles`);
+  return res.titles.map((t) => t.title).filter((t) => /^[\x20-\x7E\u00C0-\u024F]+$/.test(t));
 }
 
 export function posterUrl(path: string | null) {
