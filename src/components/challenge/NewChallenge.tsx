@@ -56,6 +56,9 @@ export function NewChallenge() {
         </Link>
       </div>
 
+      {/* Games already going come first, so tapping the VS badge lands on them. */}
+      <YourGames />
+
       <div className="text-center">
         <h2 className="font-display text-4xl tracking-wide text-amber-400">CHALLENGE A FRIEND</h2>
         <p className="mt-2 text-zinc-300">
@@ -102,7 +105,6 @@ export function NewChallenge() {
         <span className="h-px flex-1 bg-white/10" /> or <span className="h-px flex-1 bg-white/10" />
       </div>
       <JoinWithCode />
-      <YourGames />
     </div>
   );
 }

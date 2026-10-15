@@ -67,7 +67,7 @@ export async function lookupCode(code: string) {
 
 /** Status of the games this device has played, for the "Your games" list. */
 export async function myGames(ids: string[]) {
-  const valid = ids.filter((id) => UUID.test(id)).slice(0, 20);
+  const valid = ids.filter((id) => UUID.test(id)).slice(0, 50);
   if (valid.length === 0) return [];
   return summarizeChallenges(valid, await playerId(false));
 }

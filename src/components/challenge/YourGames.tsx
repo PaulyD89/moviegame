@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { myGames } from "@/app/challenge/actions";
 import type { ChallengeSummary } from "@/lib/challenge";
-import { loadGameIds } from "./myGames";
+import { keepGames, loadGameIds } from "./myGames";
 
 /** Games this device has joined, with whose turn it is. */
 export function YourGames() {
@@ -12,11 +12,9 @@ export function YourGames() {
 
   useEffect(() => {
     const ids = loadGameIds();
-    // Finished games drop off the list after a few days; open ones stay until they end.
-    const cutoff = Date.now() - 3 * 24 * 60 * 60 * 1000;
     if (ids.length)
       myGames(ids)
-        .then((all) => setGames(all.filter((g) => g.status !== "finished" || Date.parse(g.updatedAt) > cutoff)))
+        .then((all) => setGames(keepGames(all)))
         .catch(() => {});
   }, []);
 

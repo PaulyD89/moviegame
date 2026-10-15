@@ -533,5 +533,11 @@ export async function summarizeChallenges(ids: string[], playerId: string | null
         updatedAt: row.updated_at,
       };
     })
-    .sort((a, b) => Number(b.yourTurn) - Number(a.yourTurn) || b.updatedAt.localeCompare(a.updatedAt));
+    // Your turn first, then games still going, then finished; newest first within each.
+    .sort(
+      (a, b) =>
+        Number(b.yourTurn) - Number(a.yourTurn) ||
+        Number(a.status === "finished") - Number(b.status === "finished") ||
+        b.updatedAt.localeCompare(a.updatedAt),
+    );
 }
