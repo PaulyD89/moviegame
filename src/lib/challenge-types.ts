@@ -37,6 +37,7 @@ export type ChallengeView = {
   moves: ChallengeMove[];
   youSeat: number | null;
   youAreHost: boolean;
+  code: string | null;
 };
 
 export type MoveResult =

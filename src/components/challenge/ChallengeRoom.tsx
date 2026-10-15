@@ -13,6 +13,8 @@ import {
 } from "@/lib/challenge-types";
 import { WORD, type Card } from "@/lib/types";
 import { Logo } from "../Logo";
+import { NotifyButton } from "../push/NotifyButton";
+import { rememberGame } from "./myGames";
 import { loadNickname, saveNickname } from "./nickname";
 
 const POLL_MS = 2_000;
@@ -31,6 +33,7 @@ export function ChallengeRoom({ id }: { id: string }) {
         if (!active) return;
         setState(next);
         if (next) setOffset(next.serverNow - Date.now());
+        if (next?.youSeat !== null && next?.youSeat !== undefined) rememberGame(next.id);
       } catch {
         // Network blip; the next poll will catch up.
       }
@@ -126,9 +129,17 @@ function Lobby({ state, reload }: { state: ChallengeView; reload: () => Promise<
         ))}
       </ul>
 
+      {state.code && (
+        <div className="text-center">
+          <div className="text-xs uppercase tracking-widest text-zinc-300">Game code</div>
+          <div className="font-display text-4xl tracking-[0.3em] text-white">{state.code}</div>
+        </div>
+      )}
+
       {joined ? (
         <>
-          <InviteButton host={host} />
+          <InviteButton host={host} code={state.code} />
+          <NotifyButton mode="challenge" code={state.code} />
           {state.youAreHost ? (
             <button
               disabled={isPending || state.players.length < 2}
@@ -152,7 +163,10 @@ function Lobby({ state, reload }: { state: ChallengeView; reload: () => Promise<
           )}
         </>
       ) : (
-        <JoinForm id={state.id} reload={reload} />
+        <>
+          <IPhoneJoinHint code={state.code} />
+          <JoinForm id={state.id} reload={reload} />
+        </>
       )}
       {error && <p className="text-sm text-red-400">{error}</p>}
     </div>
@@ -210,11 +224,21 @@ function JoinForm({ id, reload }: { id: string; reload: () => Promise<void> }) {
   );
 }
 
-function InviteButton({ host, label = "Invite friends" }: { host: string; label?: string }) {
+function InviteButton({
+  host,
+  code,
+  label = "Invite friends",
+}: {
+  host: string;
+  code?: string | null;
+  label?: string;
+}) {
   const [copied, setCopied] = useState(false);
   async function invite() {
-    const url = window.location.href;
-    const text = `${host} challenged you to Movie Horse 🐴 Name actors & movies. Don't spell M-O-V-I-E.`;
+    const url = window.location.origin + window.location.pathname;
+    const text =
+      `${host} challenged you to Movie Horse 🐴 Name actors & movies. Don't spell M-O-V-I-E.` +
+      (code ? ` Game code: ${code}` : "");
     try {
       if (navigator.share) return await navigator.share({ title: "Movie Horse", text, url });
       await navigator.clipboard.writeText(`${text}\n${url}`);
@@ -282,15 +306,34 @@ function Playing({
                 They&apos;re not on the screen right now. The game is saved; give them a nudge.
               </p>
               <div className="mt-3">
-                <InviteButton host={me?.nickname ?? "A friend"} label={`Nudge ${current.nickname}`} />
+                <InviteButton host={me?.nickname ?? "A friend"} code={state.code} label={`Nudge ${current.nickname}`} />
               </div>
             </>
           )}
         </div>
       )}
 
+      {!myTurn && me && !me.out && <NotifyButton mode="challenge" code={state.code} />}
       <ChainLog moves={state.moves} />
     </div>
+  );
+}
+
+/** iPhone players who want turn alerts should join from the Home Screen app. */
+function IPhoneJoinHint({ code }: { code: string | null }) {
+  const [show] = useState(
+    () =>
+      typeof navigator !== "undefined" &&
+      /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+      !window.matchMedia("(display-mode: standalone)").matches,
+  );
+  if (!show || !code) return null;
+  return (
+    <p className="rounded-xl bg-white/5 p-3 text-center text-sm text-zinc-200">
+      📱 Want a ping when it&apos;s your turn? Add Movie Horse to your Home Screen (Share → Add to Home
+      Screen), open it, then tap <b>VS</b> → <b>Join with code</b> <b className="tracking-widest text-amber-400">{code}</b>.
+      Or just join here.
+    </p>
   );
 }
 

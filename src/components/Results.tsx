@@ -7,6 +7,7 @@ import { msUntilNextPuzzle } from "@/lib/daily-clock";
 import { LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
 import { Logo } from "./Logo";
+import { NotifyButton } from "./push/NotifyButton";
 import { loadStats, type SavedGame, type Stats } from "./storage";
 
 function formatTime(ms: number) {
@@ -140,6 +141,7 @@ export function Results({ game }: { game: SavedGame }) {
         Challenge a friend
       </Link>
       <NextPuzzle />
+      <NotifyButton mode="daily" />
     </div>
   );
 }

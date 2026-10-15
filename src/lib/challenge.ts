@@ -1,5 +1,7 @@
 import "server-only";
+import { after } from "next/server";
 import { matchGuess, startCard } from "./game";
+import { notifyPlayers } from "./push";
 import { createAdminClient } from "./supabase/admin";
 import {
   MAX_PLAYERS,
@@ -23,6 +25,7 @@ type ChallengeRow = {
   turn_deadline: string | null;
   winner_id: string | null;
   version: number;
+  code: string | null;
 };
 
 type PlayerRow = {
@@ -45,6 +48,23 @@ type MoveRow = {
 const db = () => createAdminClient();
 const isOut = (p: PlayerRow) => p.letters >= WORD.length;
 const isLive = (p: PlayerRow, now: number) => now - Date.parse(p.last_seen) < LIVE_MS;
+
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I/L
+const newCode = () =>
+  Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
+
+const promptLine = (card: Card) =>
+  card.kind === "movie" ? `Name an actor in ${card.name}.` : `Name a movie with ${card.name}.`;
+
+/** Push a notification after the response is sent, so a slow push never delays a move. */
+function notifyLater(playerIds: string[], title: string, body: string, challengeId: string) {
+  if (playerIds.length === 0) return;
+  after(() =>
+    notifyPlayers(playerIds, { title, body, url: `/c/${challengeId}`, tag: `challenge-${challengeId}` }).catch(
+      (e) => console.error("push failed", e),
+    ),
+  );
+}
 
 export function cleanNickname(name: string) {
   return name.replace(/\s+/g, " ").trim().slice(0, 20);
@@ -100,12 +120,18 @@ async function commit(c: ChallengeRow, patch: Partial<ChallengeRow>) {
 
 export async function createChallenge(playerId: string, nickname: string) {
   const supabase = db();
-  const { data, error } = await supabase
-    .from("challenges")
-    .insert({ host_id: playerId })
-    .select("id")
-    .single<{ id: string }>();
-  if (error) throw error;
+  // Codes are random; on the rare collision, try another.
+  let data: { id: string } | null = null;
+  for (let attempt = 0; attempt < 5 && !data; attempt++) {
+    const res = await supabase
+      .from("challenges")
+      .insert({ host_id: playerId, code: newCode() })
+      .select("id")
+      .single<{ id: string }>();
+    if (res.error && res.error.code !== "23505") throw res.error;
+    data = res.data;
+  }
+  if (!data) throw new Error("Couldn't create a game code");
   const joined = await supabase
     .from("challenge_players")
     .insert({ challenge_id: data.id, player_id: playerId, seat: 0, nickname });
@@ -127,6 +153,12 @@ export async function joinChallenge(id: string, playerId: string, nickname: stri
     .insert({ challenge_id: id, player_id: playerId, seat, nickname });
   // A simultaneous join can grab the same seat; the unique constraint rejects one of them.
   if (error) return { ok: false as const, reason: "retry" };
+  notifyLater(
+    [challenge.host_id],
+    `🐴 ${nickname} joined your game`,
+    `${players.length + 1} players in the lobby. Start whenever you're ready.`,
+    id,
+  );
   return { ok: true as const };
 }
 
@@ -139,13 +171,27 @@ export async function startChallenge(id: string, playerId: string) {
   }
   const used = new Set<string>();
   const card = await startCard(used, `${id}:start`);
-  return commit(challenge, {
+  const started = await commit(challenge, {
     status: "playing",
     card,
     used: [cardKey(card)],
     turn_seat: players[0].seat,
     ...turnTiming(players, Date.now()),
   });
+  if (started) {
+    const first = players[0];
+    const host = players.find((p) => p.player_id === playerId)?.nickname ?? "The host";
+    if (first.player_id !== playerId) {
+      notifyLater([first.player_id], "🐴 Game on. Your turn!", promptLine(card), id);
+    }
+    notifyLater(
+      players.filter((p) => p.player_id !== playerId && p.player_id !== first.player_id).map((p) => p.player_id),
+      "🐴 Game on!",
+      `${host} started the game. ${first.nickname} goes first.`,
+      id,
+    );
+  }
+  return started;
 }
 
 async function applyMove(
@@ -170,14 +216,36 @@ async function applyMove(
 
   const alive = players.filter((p) => !isOut(p));
   const finished = alive.length <= 1;
+  const next = finished ? null : nextSeat(players, mover.seat);
   const committed = await commit(challenge, {
     card,
     used: [...used],
     ...(finished
       ? { status: "finished", winner_id: alive[0]?.player_id ?? null, turn_seat: null, turn_deadline: null }
-      : { turn_seat: nextSeat(players, mover.seat), ...turnTiming(players, now) }),
+      : { turn_seat: next, ...turnTiming(players, now) }),
   });
   if (!committed) return false;
+
+  const what =
+    outcome === "correct"
+      ? `${mover.nickname} said ${answer!.name} ✓`
+      : outcome === "timeout"
+        ? `${mover.nickname} ran out of time`
+        : outcome === "pass"
+          ? `${mover.nickname} passed`
+          : `${mover.nickname} missed`;
+  if (finished) {
+    const winner = alive[0];
+    notifyLater(
+      players.filter((p) => p.player_id !== mover.player_id || outcome === "timeout").map((p) => p.player_id),
+      winner ? `🏆 ${winner.nickname} wins Movie Horse!` : "🐴 Game over",
+      `${what}. That's the game.`,
+      challenge.id,
+    );
+  } else {
+    const up = players.find((p) => p.seat === next)!;
+    notifyLater([up.player_id], "🐴 Your turn!", `${what}. ${promptLine(card)}`, challenge.id);
+  }
 
   const supabase = db();
   await Promise.all([
@@ -288,5 +356,49 @@ export async function viewChallenge(id: string, playerId: string | null): Promis
     })),
     youSeat: me?.seat ?? null,
     youAreHost: c.host_id === playerId,
+    code: c.code,
   };
+}
+
+export async function findByCode(code: string) {
+  const { data } = await db().from("challenges").select("id").eq("code", code).maybeSingle<{ id: string }>();
+  return data?.id ?? null;
+}
+
+export type ChallengeSummary = {
+  id: string;
+  status: ChallengeRow["status"];
+  players: string[];
+  yourTurn: boolean;
+  turnName: string | null;
+  winner: string | null;
+  youWon: boolean;
+  updatedAt: string;
+};
+
+/** One-line status for each game in a device's "Your games" list. */
+export async function summarizeChallenges(ids: string[], playerId: string | null): Promise<ChallengeSummary[]> {
+  const supabase = db();
+  const [c, p] = await Promise.all([
+    supabase.from("challenges").select("id, status, turn_seat, winner_id, updated_at").in("id", ids),
+    supabase.from("challenge_players").select("challenge_id, player_id, seat, nickname").in("challenge_id", ids),
+  ]);
+  const players = (p.data ?? []) as { challenge_id: string; player_id: string; seat: number; nickname: string }[];
+  return ((c.data ?? []) as (Pick<ChallengeRow, "id" | "status" | "turn_seat" | "winner_id"> & { updated_at: string })[])
+    .map((row) => {
+      const mine = players.filter((x) => x.challenge_id === row.id).sort((a, b) => a.seat - b.seat);
+      const turn = mine.find((x) => x.seat === row.turn_seat);
+      const winner = mine.find((x) => x.player_id === row.winner_id);
+      return {
+        id: row.id,
+        status: row.status,
+        players: mine.map((x) => x.nickname),
+        yourTurn: row.status === "playing" && !!playerId && turn?.player_id === playerId,
+        turnName: turn?.nickname ?? null,
+        winner: winner?.nickname ?? null,
+        youWon: !!playerId && winner?.player_id === playerId,
+        updatedAt: row.updated_at,
+      };
+    })
+    .sort((a, b) => Number(b.yourTurn) - Number(a.yourTurn) || b.updatedAt.localeCompare(a.updatedAt));
 }

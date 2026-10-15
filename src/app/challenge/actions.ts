@@ -1,36 +1,16 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   cleanNickname,
   createChallenge,
+  findByCode,
   joinChallenge,
   startChallenge,
   submitMove,
+  summarizeChallenges,
   viewChallenge,
 } from "@/lib/challenge";
-
-const COOKIE = "mh_pid";
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** Anonymous player id, kept in an httpOnly cookie so it can't be swapped from the page. */
-async function playerId(create: true): Promise<string>;
-async function playerId(create: false): Promise<string | null>;
-async function playerId(create: boolean) {
-  const store = await cookies();
-  const existing = store.get(COOKIE)?.value;
-  if (existing && UUID.test(existing)) return existing;
-  if (!create) return null;
-  const id = crypto.randomUUID();
-  store.set(COOKIE, id, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-  });
-  return id;
-}
+import { playerId, UUID } from "@/lib/player";
 
 function checkId(id: string) {
   if (!UUID.test(id)) throw new Error("Bad challenge id");
@@ -62,4 +42,16 @@ export async function move(id: string, version: number, guess: string | null) {
 export async function view(id: string) {
   checkId(id);
   return viewChallenge(id, await playerId(false));
+}
+
+export async function lookupCode(code: string) {
+  const clean = code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+  return clean ? findByCode(clean) : null;
+}
+
+/** Status of the games this device has played, for the "Your games" list. */
+export async function myGames(ids: string[]) {
+  const valid = ids.filter((id) => UUID.test(id)).slice(0, 20);
+  if (valid.length === 0) return [];
+  return summarizeChallenges(valid, await playerId(false));
 }

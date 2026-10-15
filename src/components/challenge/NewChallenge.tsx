@@ -6,7 +6,9 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { create } from "@/app/challenge/actions";
 import { MAX_PLAYERS } from "@/lib/challenge-types";
 import { Logo } from "../Logo";
+import { JoinWithCode } from "./JoinWithCode";
 import { loadNickname, saveNickname } from "./nickname";
+import { YourGames } from "./YourGames";
 
 export function NewChallenge() {
   const router = useRouter();
@@ -92,6 +94,12 @@ export function NewChallenge() {
         </button>
         {error && <p className="text-center text-sm text-red-400">{error}</p>}
       </form>
+
+      <div className="flex w-full items-center gap-3 text-xs uppercase tracking-widest text-zinc-400">
+        <span className="h-px flex-1 bg-white/10" /> or <span className="h-px flex-1 bg-white/10" />
+      </div>
+      <JoinWithCode />
+      <YourGames />
     </div>
   );
 }
