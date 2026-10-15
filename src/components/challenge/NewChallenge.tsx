@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { track } from "@vercel/analytics";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { create } from "@/app/challenge/actions";
@@ -34,6 +35,7 @@ export function NewChallenge() {
       try {
         saveNickname(nickname);
         const id = await create(nickname);
+        track("challenge_created");
         router.push(`/c/${id}`);
       } catch {
         setError("Couldn't create the challenge. Try again.");

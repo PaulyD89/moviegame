@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@vercel/analytics";
 import { useEffect, useState } from "react";
 import { setDailyReminder, status, subscribe, unsubscribe } from "@/app/push/actions";
 
@@ -74,6 +75,7 @@ export function usePush() {
         applicationServerKey: keyBytes(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
       }));
     await subscribe(asJSON(sub), daily);
+    track("notifications_on", { daily: !!daily });
     setState((prev) => ({ kind: "on", daily: daily ?? (prev.kind === "on" && prev.daily) }));
     return true;
   }

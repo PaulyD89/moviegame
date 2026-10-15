@@ -25,3 +25,10 @@ export function msUntilNextPuzzle(now = new Date()): number {
   const elapsed = (parts.hour * 3600 + parts.minute * 60 + parts.second) * 1000 + now.getMilliseconds();
   return 86_400_000 - elapsed;
 }
+
+const LAUNCH = Date.UTC(2026, 9, 14); // puzzle #1
+
+/** Puzzle number for a YYYY-MM-DD date (Eastern). */
+export function puzzleNumber(dateStr: string): number {
+  return Math.floor((Date.parse(dateStr) - LAUNCH) / 86_400_000) + 1;
+}

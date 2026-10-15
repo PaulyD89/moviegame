@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { track } from "@vercel/analytics";
 import { useEffect, useState } from "react";
+import { myDailyRank } from "@/app/actions";
 import { msUntilNextPuzzle } from "@/lib/daily-clock";
 import { LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
@@ -64,6 +66,7 @@ export function Results({ game }: { game: SavedGame }) {
 
   async function share() {
     const text = shareText(game);
+    track("result_shared");
     const url = window.location.origin;
     try {
       if (navigator.share) {
@@ -148,6 +151,7 @@ export function Results({ game }: { game: SavedGame }) {
       >
         Challenge a friend
       </Link>
+      <TodayRank number={game.number} />
       <NextPuzzle />
       <NotifyButton mode="daily" />
     </div>
@@ -193,6 +197,33 @@ function NextPuzzle() {
       Next chain in <span className="font-display text-lg tracking-wider text-white">{hms}</span>
       <br />
       <span className="text-xs text-zinc-400">New chain daily at midnight ET / 9pm PT</span>
+    </p>
+  );
+}
+
+/** "You beat 72% of players today", once enough people have finished to make it meaningful. */
+function TodayRank({ number }: { number: number }) {
+  const [rank, setRank] = useState<{ others: number; percentBeat: number } | null>(null);
+  useEffect(() => {
+    let active = true;
+    // The finish is logged in the background, so retry briefly if it hasn't landed yet.
+    const attempt = (tries: number) =>
+      myDailyRank(number)
+        .then((r) => {
+          if (!active) return;
+          if (r) setRank(r);
+          else if (tries > 0) setTimeout(() => attempt(tries - 1), 1500);
+        })
+        .catch(() => {});
+    attempt(3);
+    return () => {
+      active = false;
+    };
+  }, [number]);
+  if (!rank || rank.others < 3) return null;
+  return (
+    <p className="text-center text-white">
+      🏅 You beat <b className="text-amber-400">{rank.percentBeat}%</b> of players today
     </p>
   );
 }

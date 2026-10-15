@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@vercel/analytics";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -191,6 +192,7 @@ function JoinForm({ id, reload }: { id: string; reload: () => Promise<void> }) {
     startTransition(async () => {
       saveNickname(nickname);
       const result = await join(id, nickname);
+      if (result.ok) track("challenge_joined");
       if (!result.ok) {
         setError(
           result.reason === "full"
@@ -620,6 +622,7 @@ function Finished({ state }: { state: ChallengeView }) {
           onClick={() =>
             startTransition(async () => {
               const id = await rematch(state.id);
+              track("rematch");
               if (id) router.push(`/c/${id}`);
             })
           }

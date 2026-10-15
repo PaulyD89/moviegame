@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { track } from "@vercel/analytics";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { pass, startDaily, submitGuess } from "@/app/actions";
+import { dailyFinished, dailyStarted, pass, startDaily, submitGuess } from "@/app/actions";
 import { puzzleDate } from "@/lib/daily-clock";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
 import { loadNickname } from "./challenge/nickname";
@@ -33,6 +34,7 @@ export function Game() {
       const saved = loadGame(date);
       if (saved) return saved;
       const { number, card } = await startDaily(date);
+      dailyStarted(number).catch(() => {}); // anonymous play count; never blocks the game
       return {
         date,
         number,
@@ -81,6 +83,13 @@ export function Game() {
     if (next.status === "playing") return next;
     const done = { ...next, finishedAt: Date.now() };
     recordResult(done);
+    track("daily_finished", { won: done.status === "won", links: done.links.length });
+    dailyFinished(done.number, {
+      won: done.status === "won",
+      links: done.links.length,
+      letters: done.letters,
+      durationMs: done.finishedAt! - done.startedAt,
+    }).catch(() => {});
     return done;
   }
 

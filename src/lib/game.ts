@@ -1,4 +1,5 @@
 import "server-only";
+import { puzzleNumber } from "./daily-clock";
 import { closeness, nameKey, titleKey } from "./normalize";
 import {
   getMovie,
@@ -13,7 +14,6 @@ import {
 import { createAdminClient } from "./supabase/admin";
 import { cardKey, type Card, type GuessResult } from "./types";
 
-const LAUNCH = Date.UTC(2026, 9, 14); // puzzle #1
 const NOT_A_ROLE = /\b(him|her|them)?self\b|uncredited|archive footage/i;
 const SKIP_GENRES = new Set([99, 10770]); // documentary, TV movie
 
@@ -149,7 +149,7 @@ async function leadActor(movie: TmdbMovie, usedPeople: Set<number>) {
  * and never reuses a movie or lead actor from an earlier day.
  */
 export async function dailyStart(dateStr: string): Promise<{ number: number; card: Card }> {
-  const number = Math.floor((Date.parse(dateStr) - LAUNCH) / 86_400_000) + 1;
+  const number = puzzleNumber(dateStr);
   const supabase = createAdminClient();
   const toCard = async (row: PuzzleRow) =>
     row.kind === "person" ? personCard(await getPerson(row.tmdb_id)) : movieCard(await getMovie(row.tmdb_id));

@@ -1,6 +1,8 @@
 "use server";
 
-import { puzzleDate } from "@/lib/daily-clock";
+import { puzzleDate, puzzleNumber } from "@/lib/daily-clock";
+import { dailyRank, logDailyFinish, logDailyStart, type DailyFinish } from "@/lib/daily-log";
+import { playerId } from "@/lib/player";
 import { checkGuess, dailyStart, passCard } from "@/lib/game";
 import type { Card } from "@/lib/types";
 
@@ -24,4 +26,35 @@ export async function submitGuess(card: Card, guess: string, used: string[], dat
 export async function pass(card: Card, from: Card | null, used: string[], dateStr: string) {
   if (!DATE.test(dateStr)) throw new Error("Bad date");
   return passCard(card, from, used.slice(0, 200), dateStr);
+}
+
+/** Only today's puzzle (give or take a day for clock skew) can be logged. */
+function currentPuzzle(puzzle: number) {
+  const day = 86_400_000;
+  const allowed = [-day, 0, day].map((o) => puzzleNumber(puzzleDate(new Date(Date.now() + o))));
+  if (!Number.isInteger(puzzle) || !allowed.includes(puzzle)) throw new Error("Not a current puzzle");
+}
+
+export async function dailyStarted(puzzle: number) {
+  currentPuzzle(puzzle);
+  await logDailyStart(puzzle, await playerId(true));
+}
+
+export async function dailyFinished(puzzle: number, result: DailyFinish) {
+  currentPuzzle(puzzle);
+  const clean: DailyFinish = {
+    won: Boolean(result.won),
+    links: Math.min(10, Math.max(0, Math.trunc(result.links))),
+    letters: Math.min(5, Math.max(0, Math.trunc(result.letters))),
+    durationMs: Math.min(86_400_000, Math.max(0, Math.trunc(result.durationMs))),
+  };
+  const pid = await playerId(true);
+  await logDailyFinish(puzzle, pid, clean);
+  return dailyRank(puzzle, pid);
+}
+
+export async function myDailyRank(puzzle: number) {
+  currentPuzzle(puzzle);
+  const pid = await playerId(false);
+  return pid ? dailyRank(puzzle, pid) : null;
 }
