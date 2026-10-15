@@ -13,12 +13,17 @@ export async function playerId(create: boolean) {
   if (existing && UUID.test(existing)) return existing;
   if (!create) return null;
   const id = crypto.randomUUID();
-  store.set(COOKIE, id, {
+  await setPlayerCookie(id);
+  return id;
+}
+
+/** Make this browser play as `id` (a new player, or one restored from a progress code). */
+export async function setPlayerCookie(id: string) {
+  (await cookies()).set(COOKIE, id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
   });
-  return id;
 }

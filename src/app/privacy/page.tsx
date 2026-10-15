@@ -74,6 +74,12 @@ export default function PrivacyPage() {
           Mozilla). This product uses the TMDB API but is not endorsed or certified by TMDB.
         </Section>
 
+        <Section title="Save codes">
+          If you ask for a save code, we keep a copy of your stats, challenge list and nickname with it
+          (refreshed after each game) so the code can restore them on another phone or browser. Anyone
+          with your code can restore your progress, so keep it to yourself.
+        </Section>
+
         <Section title="Your choices">
           <ul className="list-disc space-y-1.5 pl-5">
             <li>Turn notifications off anytime in your phone or browser settings.</li>

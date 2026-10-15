@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ProgressLink } from "./progress/ProgressLink";
 
 /** Page frame shared by every screen: phone-width column, safe areas, TMDB credit. */
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -14,6 +15,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <a href="mailto:moviehorsegame@gmail.com" className="underline-offset-2 hover:underline">
             Contact
           </a>
+          <ProgressLink className="underline-offset-2 hover:underline">Save progress</ProgressLink>
         </nav>
         Movie data &amp; images from TMDB. This product uses the TMDB API but is not endorsed or
         certified by TMDB.

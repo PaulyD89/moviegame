@@ -70,3 +70,15 @@ button {
   cursor: pointer;
   touch-action: manipulation;
 }
+
+/* No scroll indicator: the pages are short, and the bar flashing at the edge is distracting. */
+html,
+body,
+* {
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none;
+}

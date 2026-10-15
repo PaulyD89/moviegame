@@ -12,6 +12,7 @@ import { VsButton } from "./challenge/VsButton";
 import { HelpButton, HowToPlay, hasSeenHowTo } from "./HowToPlay";
 import { StatsButton, StatsSheet } from "./StatsSheet";
 import { Logo } from "./Logo";
+import { backupAfterGame } from "./progress/snapshot";
 import { SpeedClock } from "./SpeedClock";
 import { UsedWarning } from "./UsedWarning";
 import { Results } from "./Results";
@@ -41,6 +42,7 @@ export function Game() {
   const apply = useCallback((next: SavedGame) => {
     if (next.status !== "playing" && recordResult(next)) {
       track("daily_finished", { won: next.status === "won", links: next.links.length, fast: next.fastLinks });
+      backupAfterGame();
     }
     setGame(next);
   }, []);

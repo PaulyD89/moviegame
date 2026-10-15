@@ -11,6 +11,7 @@ const LIMITS = {
   create: { windowSec: 3600, perPlayer: 15, perIp: 40 }, // new challenges and rematches
   code: { windowSec: 60, perPlayer: 15, perIp: 30 }, // join-code lookups (no guessing codes)
   report: { windowSec: 3600, perPlayer: 10, perIp: 30 }, // phone error reports
+  restore: { windowSec: 3600, perPlayer: 10, perIp: 30 }, // progress-code tries (no guessing codes)
 } as const;
 
 export type LimitName = keyof typeof LIMITS;

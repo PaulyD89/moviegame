@@ -18,6 +18,7 @@ import { Logo } from "../Logo";
 import { NotifyButton } from "../push/NotifyButton";
 import { recordChallenge } from "../storage";
 import { UsedWarning } from "../UsedWarning";
+import { backupAfterGame } from "../progress/snapshot";
 import { markResultSeen, rememberGame } from "./myGames";
 import { loadNickname, saveNickname } from "./nickname";
 
@@ -694,6 +695,7 @@ function Finished({ state, reload }: { state: ChallengeView; reload: () => Promi
     if (!me) return;
     recordChallenge(state.id, youWon);
     markResultSeen(state.id);
+    backupAfterGame();
   }, [me, state.id, youWon]);
   const standings = finalStandings(state);
   const chain = state.moves.filter((m) => m.outcome === "correct" && m.answer);

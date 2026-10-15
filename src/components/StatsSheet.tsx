@@ -1,6 +1,7 @@
 "use client";
 
 import { Modal } from "./Modal";
+import { ProgressLink } from "./progress/ProgressLink";
 
 import { useEffect, useRef, useState } from "react";
 import { myGlobalRank } from "@/app/actions";
@@ -70,8 +71,11 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
       </div>
 
       <p className="mt-5 text-center text-xs text-zinc-400">
-        Stats are saved on this device. Your global rank follows this phone&apos;s browser.
+        Stats are saved in this browser. Switching phones or browsers?
       </p>
+      <ProgressLink className="mx-auto mt-1 flex min-h-11 items-center px-3 text-sm font-semibold text-amber-400 underline underline-offset-2">
+        📲 Save or restore your progress
+      </ProgressLink>
       <button
         ref={closeRef}
         onClick={onClose}
