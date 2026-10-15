@@ -49,15 +49,33 @@ function hash(s: string) {
   return h >>> 0;
 }
 
+/**
+ * A repeatable number in [0, 1) for a seed. From puzzle #3 on, the hash gets a final mixing
+ * step (MurmurHash3's finalizer): without it, seeds that differ only at the end land close
+ * together and skew which decade or actor wins. Earlier puzzles keep the old numbers.
+ */
+function roll(seed: string) {
+  let h = hash(seed);
+  if (audienceRules(seed)) {
+    h ^= h >>> 16;
+    h = Math.imul(h, 0x85ebca6b);
+    h ^= h >>> 13;
+    h = Math.imul(h, 0xc2b2ae35);
+    h ^= h >>> 16;
+    h >>>= 0;
+  }
+  return h / 2 ** 32;
+}
+
 /** The game never shows movies before 1970, and shows 1970s ones half as often. */
 const MIN_YEAR = 1970;
 
 /**
- * Picks lean toward the movies 25-to-55-year-olds grew up with (90s and 2000s most), with the
- * 70s and 2020s lighter. Took effect with puzzle #3 (2026-10-16) so #2 stayed consistent all day.
+ * Share of picks per decade, aimed at 25-to-55-year-olds (percent; the owner's numbers).
+ * Took effect with puzzle #3 (2026-10-16) so #2 stayed consistent all day.
  */
 const AUDIENCE_RULES_FROM = "2026-10-16";
-const DECADE_WEIGHT: Record<number, number> = { 1970: 1 / 3, 1980: 1, 1990: 1.3, 2000: 1.3, 2010: 1, 2020: 0.7 };
+const DECADE_WEIGHT: Record<number, number> = { 1970: 4, 1980: 17, 1990: 21, 2000: 21, 2010: 21, 2020: 16 };
 
 /** The day a pick belongs to: daily seeds start with the puzzle date; challenges use today. */
 const rulesDate = (seed: string) => /^\d{4}-\d{2}-\d{2}/.exec(seed)?.[0] ?? puzzleDate();
@@ -77,7 +95,7 @@ function pickWeighted<T>(items: T[], seed: string, weight: (item: T) => number):
   const weighted = items.map((item) => ({ item, w: weight(item) })).filter((x) => x.w > 0);
   const total = weighted.reduce((sum, x) => sum + x.w, 0);
   if (total === 0) return undefined;
-  let r = (hash(seed) / 2 ** 32) * total;
+  let r = roll(seed) * total;
   for (const x of weighted) {
     r -= x.w;
     if (r < 0) return x.item;
@@ -104,7 +122,7 @@ async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string)
       !NOT_A_ROLE.test(c.character ?? "") &&
       !c.genre_ids.some((g) => SKIP_GENRES.has(g)),
   );
-  if (!used.has(SIXTIES_USED) && hash(`${seed}:60s`) / 2 ** 32 < SIXTIES_SHARE) {
+  if (!used.has(SIXTIES_USED) && roll(`${seed}:60s`) < SIXTIES_SHARE) {
     const sixties = eligible
       .filter((c) => isSixties(yearOf(c.release_date)) && c.vote_count >= 500)
       .sort((a, b) => b.vote_count - a.vote_count)
@@ -139,7 +157,7 @@ async function nextPersonFor(movie: TmdbMovie, used: Set<string>, seed: string):
       !used.has(cardKey({ kind: "person", id: c.id })) &&
       !NOT_A_ROLE.test(c.character ?? ""),
   );
-  const wantClassic = hash(`${seed}:era`) / 2 ** 32 < CLASSIC_SHARE;
+  const wantClassic = roll(`${seed}:era`) < CLASSIC_SHARE;
   for (const maxOrder of [6, 12, 30]) {
     const tier = cast.filter((c) => c.order < maxOrder);
     if (tier.length === 0) continue;
