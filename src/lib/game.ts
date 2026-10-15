@@ -1,6 +1,6 @@
 import "server-only";
 import { puzzleNumber } from "./daily-clock";
-import { closeness, nameKey, titleKey } from "./normalize";
+import { closeness, nameKey, soundsLike, titleKey } from "./normalize";
 import {
   getMovie,
   getPerson,
@@ -221,6 +221,11 @@ export async function matchGuess(card: Card, guess: string, used: Set<string>): 
       const people = new Set(byLast.items.map((c) => c.id));
       if (people.size === 1) ({ best, items } = { best: 1, items: byLast.items });
     }
+    if (items.length === 0) {
+      // Spelled by ear ("Kay Huay Quan" for Ke Huy Quan), if it points to exactly one person.
+      const heard = cast.filter((c) => soundsLike(guess, c.name));
+      if (new Set(heard.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: heard });
+    }
     if (items.length === 0) return { outcome: "wrong" };
     const answer = personCard(await getPerson(items[0].id));
     if (used.has(cardKey(answer))) return { outcome: "used", answer };
@@ -232,12 +237,20 @@ export async function matchGuess(card: Card, guess: string, used: Set<string>): 
     .sort((a, b) => b.vote_count - a.vote_count);
   // The main title alone counts too: "Batman v Superman" for "Batman v Superman: Dawn of Justice".
   const mainTitle = (title: string) => (title.includes(":") ? titleKey(title.split(":")[0]) : "");
-  const { best, items } = ranked(credits, (c) =>
+  let { best, items } = ranked(credits, (c) =>
     closeness(
       [key, titleKey(guess)],
       [nameKey(c.title), nameKey(c.original_title), titleKey(c.title), mainTitle(c.title)],
     ),
   );
+  if (items.length === 0) {
+    // A title spelled by ear, if it points to exactly one film.
+    const strip = (s: string) => s.replace(/^\s*(the|a|an)\s+/i, "");
+    const heard = credits.filter(
+      (c) => soundsLike(strip(guess), strip(c.title)) || soundsLike(strip(guess), strip(c.title.split(":")[0])),
+    );
+    if (new Set(heard.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: heard });
+  }
   if (items.length === 0) return { outcome: "wrong" };
 
   // Same title can exist twice (remakes); prefer one not yet used.

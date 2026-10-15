@@ -1,3 +1,5 @@
+import { doubleMetaphone } from "double-metaphone";
+
 /**
  * Words that people write either way. Both the guess and the real title/name go through this,
  * so "Dr. Strange" = "Doctor Strange" and "Rocky 2" = "Rocky II".
@@ -75,4 +77,50 @@ export function closeness(guessKeys: string[], candidateKeys: string[]): number 
     }
   }
   return best;
+}
+
+/** Plain edit distance (no cap), for the sound-alike check. */
+function editDistance(a: string, b: string): number {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = row;
+  }
+  return prev[b.length];
+}
+
+const soundWords = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/['’]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map((w) => SAME_WORD[w] ?? w);
+
+/**
+ * Does the guess sound like the real name, spelled by ear? "Kay Huay Quan" = "Ke Huy Quan",
+ * "Zack Galifinakis" = "Zach Galifianakis". Every word must sound alike (Double Metaphone),
+ * and the spelling must still be in the neighborhood, so different names don't slip through.
+ */
+export function soundsLike(guess: string, real: string): boolean {
+  const g = soundWords(guess);
+  const r = soundWords(real);
+  if (g.length === 0 || g.length !== r.length) return false;
+  const wordsMatch = g.every((word, i) => {
+    if (/^\d+$/.test(word) || /^\d+$/.test(r[i])) return word === r[i];
+    if (word === r[i]) return true;
+    const [a1, a2] = doubleMetaphone(word);
+    const [b1, b2] = doubleMetaphone(r[i]);
+    return [a1, a2].some((code) => code && (code === b1 || code === b2));
+  });
+  if (!wordsMatch) return false;
+  const a = g.join("");
+  const b = r.join("");
+  return editDistance(a, b) <= Math.max(2, Math.floor(b.length * 0.4));
 }
