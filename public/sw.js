@@ -23,13 +23,22 @@ self.addEventListener("notificationclick", (event) => {
   const url = new URL(event.notification.data?.url || "/", self.location.origin).href;
   event.waitUntil(
     (async () => {
+      // Leave a note for the app too: iPhones bring an open app forward but often ignore
+      // navigate(), so the app checks this note when it comes to the front.
+      const notes = await caches.open("mh-open");
+      await notes.put("/__open", new Response(JSON.stringify({ url, at: Date.now() })));
+
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      // Reuse an open Movie Horse window if there is one.
-      for (const client of windows) {
-        if (new URL(client.url).origin === self.location.origin) {
-          await client.focus();
-          return client.navigate(url);
-        }
+      const open = windows.find((c) => new URL(c.url).origin === self.location.origin);
+      if (open) {
+        try {
+          await open.focus();
+        } catch {}
+        open.postMessage({ type: "open", url });
+        try {
+          await open.navigate(url);
+        } catch {}
+        return;
       }
       return self.clients.openWindow(url);
     })(),

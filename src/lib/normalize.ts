@@ -1,14 +1,39 @@
 /**
- * Comparison key: ignores case, accents, punctuation and spacing.
- * "Zoë Saldaña" -> "zoesaldana", "Top Gun: Maverick" -> "topgunmaverick"
+ * Words that people write either way. Both the guess and the real title/name go through this,
+ * so "Dr. Strange" = "Doctor Strange" and "Rocky 2" = "Rocky II".
+ */
+const SAME_WORD: Record<string, string> = {
+  doctor: "dr",
+  mister: "mr",
+  missus: "mrs",
+  saint: "st",
+  junior: "jr",
+  senior: "sr",
+  versus: "vs",
+  mount: "mt",
+  ii: "2",
+  iii: "3",
+  iv: "4",
+  vi: "6",
+  vii: "7",
+  viii: "8",
+  ix: "9",
+};
+
+/**
+ * Comparison key: ignores case, accents, punctuation and spacing, and evens out common
+ * short forms. "Zoë Saldaña" -> "zoesaldana", "Top Gun: Maverick" -> "topgunmaverick"
  */
 export function nameKey(s: string): string {
   return s
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]/g, "");
+    .replace(/&/g, " and ")
+    .replace(/['’]/g, "")
+    .split(/[^a-z0-9]+/)
+    .map((word) => SAME_WORD[word] ?? word)
+    .join("");
 }
 
 /** Key without a leading article, so "Matrix" matches "The Matrix". */

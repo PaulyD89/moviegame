@@ -230,8 +230,13 @@ export async function matchGuess(card: Card, guess: string, used: Set<string>): 
   const credits = (await getPerson(card.id)).movie_credits.cast
     .slice()
     .sort((a, b) => b.vote_count - a.vote_count);
+  // The main title alone counts too: "Batman v Superman" for "Batman v Superman: Dawn of Justice".
+  const mainTitle = (title: string) => (title.includes(":") ? titleKey(title.split(":")[0]) : "");
   const { best, items } = ranked(credits, (c) =>
-    closeness([key, titleKey(guess)], [nameKey(c.title), nameKey(c.original_title), titleKey(c.title)]),
+    closeness(
+      [key, titleKey(guess)],
+      [nameKey(c.title), nameKey(c.original_title), titleKey(c.title), mainTitle(c.title)],
+    ),
   );
   if (items.length === 0) return { outcome: "wrong" };
 

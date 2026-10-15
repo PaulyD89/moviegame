@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Anton, Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { OpenFromNotification } from "@/components/push/OpenFromNotification";
 import "./globals.css";
 
 const marquee = Anton({
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${marquee.variable} ${body.variable} antialiased`}>
       <body className="min-h-dvh font-sans">
         {children}
+        <OpenFromNotification />
         <Analytics />
       </body>
     </html>

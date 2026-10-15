@@ -1,5 +1,7 @@
 "use client";
 
+import { Modal } from "./Modal";
+
 import { useEffect, useRef, useState } from "react";
 import { myGlobalRank } from "@/app/actions";
 import type { GlobalRank } from "@/lib/rank";
@@ -36,57 +38,48 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
   const avg = daily.played ? ((daily.linksTotal ?? 0) / daily.played).toFixed(1) : "–";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="absolute inset-0 animate-fade bg-black/70 backdrop-blur-sm" onClick={onClose} aria-hidden />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="stats-title"
-        className="relative max-h-[90dvh] w-full max-w-md animate-sheet overflow-y-auto rounded-t-3xl border-t border-amber-400/30 bg-gradient-to-b from-zinc-900 to-[#0b0908] px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:rounded-3xl sm:border"
-      >
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20 sm:hidden" />
-        <h2 id="stats-title" className="text-center font-display text-3xl tracking-wide text-amber-400">
-          YOUR STATS
-        </h2>
+    <Modal labelledBy="stats-title" onClose={onClose}>
+      <h2 id="stats-title" className="text-center font-display text-3xl tracking-wide text-amber-400">
+        YOUR STATS
+      </h2>
 
-        <GlobalRankCard rank={rank} />
+      <GlobalRankCard rank={rank} />
 
-        <h3 className="mt-5 text-xs uppercase tracking-widest text-zinc-300">Daily Movie Chain</h3>
-        <div className="mt-2 grid grid-cols-4 gap-2 text-center">
-          <Stat label="Played" value={daily.played} />
-          <Stat label="Win %" value={pct(daily.won, daily.played)} />
-          <Stat label="Streak" value={currentStreak(daily, todayNumber)} />
-          <Stat label="Best" value={daily.maxStreak} />
-        </div>
-        <p className="mt-2 text-center text-sm text-zinc-300">
-          Average chain: <b className="text-white">{avg}</b> links
-        </p>
-        <p className="mt-1 text-center text-sm text-zinc-300">
-          🏁 Fastest perfect game:{" "}
-          <b className="text-white">{daily.bestPerfectMs ? formatTime(daily.bestPerfectMs) : "none yet"}</b>
-        </p>
-
-        <LinksChart dist={daily.dist} highlight={todayLinks} />
-
-        <h3 className="mt-6 text-xs uppercase tracking-widest text-zinc-300">Challenges</h3>
-        <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-          <Stat label="Played" value={vs.played} />
-          <Stat label="Wins" value={vs.won} />
-          <Stat label="Win %" value={pct(vs.won, vs.played)} />
-        </div>
-
-        <p className="mt-5 text-center text-xs text-zinc-400">
-          Stats are saved on this device. Your global rank follows this phone&apos;s browser.
-        </p>
-        <button
-          ref={closeRef}
-          onClick={onClose}
-          className="mt-4 min-h-12 w-full rounded-xl bg-amber-400 text-lg font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-[0.98]"
-        >
-          Close
-        </button>
+      <h3 className="mt-5 text-xs uppercase tracking-widest text-zinc-300">Daily Movie Chain</h3>
+      <div className="mt-2 grid grid-cols-4 gap-2 text-center">
+        <Stat label="Played" value={daily.played} />
+        <Stat label="Win %" value={pct(daily.won, daily.played)} />
+        <Stat label="Streak" value={currentStreak(daily, todayNumber)} />
+        <Stat label="Best" value={daily.maxStreak} />
       </div>
-    </div>
+      <p className="mt-2 text-center text-sm text-zinc-300">
+        Average chain: <b className="text-white">{avg}</b> links
+      </p>
+      <p className="mt-1 text-center text-sm text-zinc-300">
+        🏁 Fastest perfect game:{" "}
+        <b className="text-white">{daily.bestPerfectMs ? formatTime(daily.bestPerfectMs) : "none yet"}</b>
+      </p>
+
+      <LinksChart dist={daily.dist} highlight={todayLinks} />
+
+      <h3 className="mt-6 text-xs uppercase tracking-widest text-zinc-300">Challenges</h3>
+      <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+        <Stat label="Played" value={vs.played} />
+        <Stat label="Wins" value={vs.won} />
+        <Stat label="Win %" value={pct(vs.won, vs.played)} />
+      </div>
+
+      <p className="mt-5 text-center text-xs text-zinc-400">
+        Stats are saved on this device. Your global rank follows this phone&apos;s browser.
+      </p>
+      <button
+        ref={closeRef}
+        onClick={onClose}
+        className="mt-4 min-h-12 w-full rounded-xl bg-amber-400 text-lg font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-[0.98]"
+      >
+        Close
+      </button>
+    </Modal>
   );
 }
 
