@@ -1,39 +1,6 @@
 import "server-only";
 import { createAdminClient } from "./supabase/admin";
 
-export type DailyFinish = { won: boolean; links: number; letters: number; durationMs: number };
-
-export async function logDailyStart(puzzle: number, playerId: string) {
-  // ignoreDuplicates: reopening the game later shouldn't reset the start time.
-  await createAdminClient()
-    .from("daily_plays")
-    .upsert({ puzzle_number: puzzle, player_id: playerId }, { ignoreDuplicates: true });
-}
-
-export async function logDailyFinish(puzzle: number, playerId: string, r: DailyFinish) {
-  const supabase = createAdminClient();
-  const row = {
-    puzzle_number: puzzle,
-    player_id: playerId,
-    finished_at: new Date().toISOString(),
-    won: r.won,
-    links: r.links,
-    letters: r.letters,
-    duration_ms: r.durationMs,
-  };
-  // Only the first finish counts (no replays to improve your rank).
-  const { data } = await supabase
-    .from("daily_plays")
-    .update(row)
-    .eq("puzzle_number", puzzle)
-    .eq("player_id", playerId)
-    .is("finished_at", null)
-    .select("player_id");
-  if (!data?.length) {
-    await supabase.from("daily_plays").upsert(row, { ignoreDuplicates: true });
-  }
-}
-
 /** How many of today's finishers this player beat: more links, or same links with fewer letters. */
 export async function dailyRank(puzzle: number, playerId: string) {
   const supabase = createAdminClient();

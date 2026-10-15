@@ -61,6 +61,10 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
         <p className="mt-2 text-center text-sm text-zinc-300">
           Average chain: <b className="text-white">{avg}</b> links
         </p>
+        <p className="mt-1 text-center text-sm text-zinc-300">
+          🏁 Fastest perfect game:{" "}
+          <b className="text-white">{daily.bestPerfectMs ? formatTime(daily.bestPerfectMs) : "none yet"}</b>
+        </p>
 
         <LinksChart dist={daily.dist} highlight={todayLinks} />
 
@@ -91,7 +95,7 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
   const [showHow, setShowHow] = useState(false);
   return (
     <section className="mt-4 rounded-2xl border border-amber-400/50 p-4 text-center">
-      <h3 className="text-xs uppercase tracking-widest text-amber-400">Global rank</h3>
+      <h3 className="text-xs uppercase tracking-widest text-amber-400">Rank</h3>
       {rank === undefined ? (
         <p className="mt-2 h-14 text-zinc-400">Loading…</p>
       ) : rank?.rank ? (
@@ -100,8 +104,7 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
             #{rank.rank.toLocaleString()}
           </div>
           <p className="text-sm text-zinc-300">
-            of {rank.ranked.toLocaleString()} {rank.ranked === 1 ? "player" : "players"} ·{" "}
-            <b className="text-white">{rank.points.toLocaleString()}</b> pts
+            <b className="text-white">{rank.points.toLocaleString()}</b> total points
           </p>
         </>
       ) : (
@@ -122,6 +125,7 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
           <ul className="space-y-1 text-sm text-zinc-300">
             <li>🏆 Daily win: <b className="text-white">10 pts</b> + 2 for each letter you didn&apos;t get</li>
             <li>🎬 Daily finished without winning: <b className="text-white">2 pts</b></li>
+            <li>⚡ Speed bonus: <b className="text-white">+1</b> for each link answered within 20 seconds</li>
           </ul>
           <p className="mt-2 text-xs text-zinc-400">
             Only the daily counts, since everyone plays the same puzzle once a day. Challenge wins show in
@@ -131,6 +135,11 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
       )}
     </section>
   );
+}
+
+function formatTime(ms: number) {
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
 function Stat({ label, value }: { label: string; value: number }) {

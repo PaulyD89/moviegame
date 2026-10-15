@@ -2,23 +2,29 @@
 
 import Image from "next/image";
 import { track } from "@vercel/analytics";
-import { useEffect, useRef, useState, useTransition } from "react";
-import { dailyFinished, dailyStarted, pass, startDaily, submitGuess } from "@/app/actions";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { openToday, playToday } from "@/app/actions";
 import { puzzleDate } from "@/lib/daily-clock";
+import type { DailySync } from "@/lib/daily-play";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
 import { loadNickname } from "./challenge/nickname";
 import { VsButton } from "./challenge/VsButton";
 import { HelpButton, HowToPlay, hasSeenHowTo } from "./HowToPlay";
 import { StatsButton, StatsSheet } from "./StatsSheet";
 import { Logo } from "./Logo";
+import { SpeedClock } from "./SpeedClock";
 import { UsedWarning } from "./UsedWarning";
 import { Results } from "./Results";
 import { currentStreak, loadGame, loadStats, recordResult, saveGame, type SavedGame } from "./storage";
 
-
 const SLOW = "Whoa, slow down a sec. Try again in a moment.";
 
 type Feedback = { tone: "good" | "bad" | "info" | "used"; text: string; id?: number } | null;
+
+/** The server's copy of the game, with the card clock moved into this phone's time. */
+function fromServer(date: string, s: DailySync): SavedGame {
+  return { ...s.state, date, number: s.number, cardShownAt: s.cardShownAt - s.serverNow + Date.now() };
+}
 
 export function Game() {
   const [game, setGame] = useState<SavedGame | null>(null);
@@ -31,32 +37,47 @@ export function Game() {
   const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    async function load(): Promise<SavedGame> {
-      const date = puzzleDate();
-      const saved = loadGame(date);
-      if (saved) return saved;
-      const { number, card } = await startDaily(date);
-      return {
-        date,
-        number,
-        card,
-        from: null,
-        links: [],
-        events: [],
-        used: [cardKey(card)],
-        letters: 0,
-        status: "playing",
-        startedAt: Date.now(),
-      };
+  /** Show what the server has; a game that just ended gets counted in this phone's stats. */
+  const apply = useCallback((next: SavedGame) => {
+    if (next.status !== "playing" && recordResult(next)) {
+      track("daily_finished", { won: next.status === "won", links: next.links.length, fast: next.fastLinks });
     }
-    load()
+    setGame(next);
+  }, []);
+
+  /** Load (or re-sync) today's game. Before the first move this also restarts the card clock. */
+  const open = useCallback(async () => {
+    const date = puzzleDate();
+    const saved = loadGame(date);
+    // Finished on this phone before the server kept games: that result stands.
+    if (saved && !saved.cardShownAt && saved.status !== "playing") return saved;
+    const legacy = saved && !saved.cardShownAt && saved.status === "playing" ? saved : null;
+    const synced = await openToday(date, legacy);
+    // null: finished on this phone before the server kept games; keep that result.
+    if (!synced) return saved;
+    return fromServer(date, synced);
+  }, []);
+
+  useEffect(() => {
+    open()
       .then((g) => {
-        setGame(g);
+        if (!g) throw new Error("No game");
+        apply(g);
         if (g.status === "playing" && g.events.length === 0 && !hasSeenHowTo()) setShowHelp(true);
       })
       .catch(() => setError("Couldn't load today's game. Check your connection and try again."));
-  }, []);
+  }, [open, apply]);
+
+  // Coming back to the app before playing restarts the clock, so opening early doesn't cost time.
+  useEffect(() => {
+    const onVisible = () => {
+      if (!document.hidden && game?.status === "playing" && game.events.length === 0) {
+        open().then((g) => g && setGame(g)).catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [open, game?.status, game?.events.length]);
 
   useEffect(() => {
     if (game) saveGame(game);
@@ -81,102 +102,58 @@ export function Game() {
   const { card } = game;
   const askingFor = card.kind === "movie" ? "an actor in this movie" : "a movie this actor was in";
 
-  function finish(next: SavedGame): SavedGame {
-    if (next.status === "playing") return next;
-    const done = { ...next, finishedAt: Date.now() };
-    recordResult(done);
-    track("daily_finished", { won: done.status === "won", links: done.links.length });
-    dailyFinished(done.number, {
-      won: done.status === "won",
-      links: done.links.length,
-      letters: done.letters,
-      durationMs: done.finishedAt! - done.startedAt,
-    }).catch(() => {});
-    return done;
-  }
-
-  function addLetter(g: SavedGame, event: "wrong" | "pass"): SavedGame {
-    const letters = g.letters + 1;
-    return {
-      ...g,
-      letters,
-      events: [...g.events, event],
-      status: letters >= WORD.length ? "lost" : "playing",
-    };
-  }
-
   function closeHelp() {
     setShowHelp(false);
     // Reading the rules shouldn't count against your time.
-    if (game!.events.length === 0) setGame({ ...game!, startedAt: Date.now() });
+    if (game!.events.length === 0) open().then((g) => g && setGame(g)).catch(() => {});
   }
 
-  /** Count a play once someone actually plays (bots and link previews never do). */
-  function countStart() {
-    if (game!.events.length === 0) dailyStarted(game!.number).catch(() => {});
-  }
-
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = guess.trim();
-    if (!text || isPending) return;
-    countStart();
-
+  /** Send a guess (or a pass, with null) and show what the server decided. */
+  function play(text: string | null) {
     startTransition(async () => {
-      const result = await submitGuess(card, text, game!.used, game!.date);
-      if (result.outcome === "slow") {
-        setFeedback({ tone: "info", text: SLOW });
-        return;
-      }
+      const date = game!.date;
+      const result = await playToday(date, text);
+      if (result.outcome === "slow") return setFeedback({ tone: "info", text: SLOW });
       if (result.outcome === "used") {
         setGuess("");
         setFeedback({ tone: "used", text: result.answer.name, id: Date.now() });
         inputRef.current?.focus();
         return;
       }
-      if (result.outcome === "wrong") {
-        const next = addLetter(game!, "wrong");
-        setGuess("");
-        setFeedback({
-          tone: "bad",
-          text: `"${text}" — nope! That's ${WORD[next.letters - 1]}.`,
-        });
-        setMisses((m) => m + 1);
-        navigator.vibrate?.(120);
-        setGame(finish(next));
+      if (result.outcome === "stale") {
+        // Played on another tab, or a double tap: catch up with the server.
+        if (result.sync) apply(fromServer(date, result.sync));
+        setFeedback({ tone: "info", text: "Caught up with your game." });
         return;
       }
-
-      const { answer, next: nextCard, close } = result;
-      const links = [...game!.links, { card, answer }];
-      const won = links.length >= LINKS_TO_WIN;
+      const next = fromServer(date, result.sync);
       setGuess("");
-      setFeedback({ tone: "good", text: close ? `Close enough! ✓ ${answer.name}` : `✓ ${answer.name}` });
-      setGame(
-        finish({
-          ...game!,
-          links,
-          events: [...game!.events, "correct"],
-          used: [...game!.used, cardKey(answer), ...(nextCard ? [cardKey(nextCard)] : [])],
-          card: nextCard ?? card,
-          from: answer,
-          status: won ? "won" : "playing",
-        }),
-      );
-      inputRef.current?.focus();
+      if (result.outcome === "wrong") {
+        setFeedback({ tone: "bad", text: `"${text}" — nope! That's ${WORD[next.letters - 1]}.` });
+        setMisses((m) => m + 1);
+        navigator.vibrate?.(120);
+      } else if (result.outcome === "pass") {
+        setFeedback({ tone: "info", text: `Passed. That's ${WORD[next.letters - 1]}.` });
+      } else if (result.outcome === "correct") {
+        const name = result.answer.name;
+        setFeedback({
+          tone: "good",
+          text: `${result.close ? "Close enough! " : ""}✓ ${name}${result.fast ? "  ⚡ +1" : ""}`,
+        });
+        inputRef.current?.focus();
+      }
+      apply(next);
     });
   }
 
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = guess.trim();
+    if (text && !isPending) play(text);
+  }
+
   function onPass() {
-    if (isPending) return;
-    countStart();
-    startTransition(async () => {
-      const nextCard = await pass(card, game!.from, game!.used, game!.date);
-      if (!nextCard) return setFeedback({ tone: "info", text: SLOW });
-      const next = addLetter(game!, "pass");
-      setFeedback({ tone: "info", text: `Passed. That's ${WORD[next.letters - 1]}.` });
-      setGame(finish({ ...next, card: nextCard, used: [...next.used, cardKey(nextCard)] }));
-    });
+    if (!isPending) play(null);
   }
 
   return (
@@ -193,6 +170,7 @@ export function Game() {
       <Letters count={game.letters} />
 
       <Progress links={game.links.length} />
+      <SpeedClock key={`${cardKey(card)}-${game.links.length}`} shownAt={game.cardShownAt} fastSoFar={game.fastLinks ?? 0} />
 
       <figure
         key={`${cardKey(card)}-${misses}`}

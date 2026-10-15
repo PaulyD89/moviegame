@@ -11,11 +11,23 @@ import { Letters } from "./Game";
 import { Logo } from "./Logo";
 import { StatsSheet } from "./StatsSheet";
 import { NotifyButton } from "./push/NotifyButton";
-import { loadStats, type SavedGame, type Stats } from "./storage";
+import { isPerfect, loadStats, type SavedGame, type Stats } from "./storage";
 
 function formatTime(ms: number) {
   const s = Math.round(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** Server-timed games carry their duration; older ones timed themselves on the phone. */
+function duration(game: SavedGame) {
+  if (typeof game.durationMs === "number") return game.durationMs;
+  return game.finishedAt && game.startedAt ? game.finishedAt - game.startedAt : null;
+}
+
+/** Today's global-rank points (see the player_points SQL function). */
+function points(game: SavedGame) {
+  const base = game.status === "won" ? 10 + 2 * (WORD.length - game.letters) : 2;
+  return { base, speed: game.fastLinks ?? 0, total: base + (game.fastLinks ?? 0) };
 }
 
 function insights(game: SavedGame) {
@@ -45,10 +57,12 @@ export function shareText(game: SavedGame) {
   const word = WORD.split("")
     .map((ch, i) => (i < game.letters ? ch : "_"))
     .join(" ");
-  const time = game.finishedAt ? ` · ${formatTime(game.finishedAt - game.startedAt)}` : "";
+  const ms = duration(game);
+  const time = ms !== null ? ` · ${formatTime(ms)}` : "";
+  const fast = game.fastLinks ? ` · ⚡${game.fastLinks}` : "";
   return [
     `Movie Horse #${game.number} 🐴`,
-    `${game.links.length}/${LINKS_TO_WIN} links${time}`,
+    `${game.links.length}/${LINKS_TO_WIN} links${time}${fast}`,
     trail,
     `${word}`,
   ].join("\n");
@@ -62,7 +76,17 @@ export function Results({ game }: { game: SavedGame }) {
 
   const won = game.status === "won";
   const { oldest, newest, decades, deepCut } = insights(game);
-  const chain = [...game.links.flatMap((l) => [l.card, l.answer]), ...(won ? [] : [game.card])];
+  const chain = [
+    ...game.links.flatMap((l) => [
+      { ...l.card, fast: false },
+      { ...l.answer, fast: !!l.fast },
+    ]),
+    ...(won ? [] : [{ ...game.card, fast: false }]),
+  ];
+  const ms = duration(game);
+  const pts = points(game);
+  const perfect = isPerfect(game);
+  const personalBest = perfect && stats.bestPerfectMs === game.durationMs;
 
   async function share() {
     const text = shareText(game);
@@ -108,17 +132,34 @@ export function Results({ game }: { game: SavedGame }) {
               {node.image && (
                 <Image src={node.image} alt={node.name} fill sizes="96px" className="object-cover" />
               )}
+              {node.fast && (
+                <span
+                  className="absolute top-1 right-1 rounded-full bg-black/70 px-1 text-xs"
+                  aria-label="answered fast"
+                >
+                  ⚡
+                </span>
+              )}
             </div>
             <div className="mt-1 line-clamp-2 text-xs text-zinc-300">{node.name}</div>
           </li>
         ))}
       </ol>
 
+      <SpeedSummary
+        fast={pts.speed}
+        links={game.links.length}
+        base={pts.base}
+        total={pts.total}
+        perfectTime={perfect && ms !== null ? formatTime(ms) : null}
+        personalBest={personalBest}
+      />
+
       <dl className="grid w-full grid-cols-2 gap-3 text-sm">
         {decades.length > 0 && (
           <Insight label="Decades covered" value={decades.map((d) => `${d}s`).join(" · ")} />
         )}
-        {game.finishedAt && <Insight label="Time" value={formatTime(game.finishedAt - game.startedAt)} />}
+        {ms !== null && <Insight label="Time" value={formatTime(ms)} />}
         {oldest && <Insight label="Oldest film" value={`${oldest.name} (${oldest.year})`} />}
         {newest && newest !== oldest && <Insight label="Newest film" value={`${newest.name} (${newest.year})`} />}
         {deepCut && <Insight label="Deep cut" value={deepCut.name} wide />}
@@ -155,6 +196,44 @@ export function Results({ game }: { game: SavedGame }) {
       <NextPuzzle />
       <NotifyButton mode="daily" />
     </div>
+  );
+}
+
+/** Speed bonus and today's ranking points, plus a perfect game's time. */
+function SpeedSummary({
+  fast,
+  links,
+  base,
+  total,
+  perfectTime,
+  personalBest,
+}: {
+  fast: number;
+  links: number;
+  base: number;
+  total: number;
+  perfectTime: string | null;
+  personalBest: boolean;
+}) {
+  return (
+    <section className="w-full rounded-2xl border border-amber-400/50 p-4 text-center">
+      <div className="text-xs uppercase tracking-widest text-amber-400">Speed bonus</div>
+      <div className="mt-1 font-display text-4xl tracking-wide text-white">⚡ +{fast}</div>
+      <p className="text-sm text-zinc-300">
+        {fast} of {links} {links === 1 ? "link" : "links"} answered in under 20 seconds
+      </p>
+      <p className="mt-2 text-sm text-zinc-200">
+        Today&apos;s points: <b className="text-white">{total}</b>{" "}
+        <span className="text-zinc-400">
+          ({base} for the game + {fast} speed)
+        </span>
+      </p>
+      {perfectTime && (
+        <p className="mt-2 text-sm font-semibold text-amber-300">
+          {personalBest ? "🏁 New record! " : "🏁 "}Perfect game in {perfectTime}
+        </p>
+      )}
+    </section>
   );
 }
 

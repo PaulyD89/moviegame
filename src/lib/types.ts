@@ -21,3 +21,5 @@ export type GuessResult =
 
 export const WORD = "MOVIE";
 export const LINKS_TO_WIN = 10;
+/** Answer within this long of a daily card appearing for a +1 speed bonus. */
+export const FAST_MS = 20_000;

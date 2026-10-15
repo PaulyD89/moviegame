@@ -1,19 +1,13 @@
-import type { Card } from "@/lib/types";
+import type { DailyState } from "@/lib/daily-play";
 
-export type GameEvent = "correct" | "wrong" | "pass";
-
-export type SavedGame = {
+/** Today's game as last synced from the server, cached so the screen appears instantly. */
+export type SavedGame = DailyState & {
   date: string;
   number: number;
-  card: Card;
-  /** The answer that led to the current card (null at the start or after a dead end). */
-  from: Card | null;
-  links: { card: Card; answer: Card }[];
-  events: GameEvent[];
-  used: string[];
-  letters: number;
-  status: "playing" | "won" | "lost";
-  startedAt: number;
+  /** Server time when the current card appeared, in this phone's clock (speed bonus timer). */
+  cardShownAt?: number;
+  /** Games saved before the server kept them timed themselves on the phone. */
+  startedAt?: number;
   finishedAt?: number;
 };
 
@@ -27,6 +21,8 @@ export type Stats = {
   /** dist[n] = how many daily games ended with n links made (0–10). */
   dist?: number[];
   linksTotal?: number;
+  /** Fastest win with no letters, in ms. */
+  bestPerfectMs?: number;
 };
 
 export type ChallengeStats = {
@@ -68,9 +64,14 @@ export function loadStats(): Stats {
   return read<Stats>(STATS_KEY) ?? { played: 0, won: 0, streak: 0, maxStreak: 0 };
 }
 
+/** Won without a single letter, with a server-measured time. */
+export const isPerfect = (game: SavedGame) =>
+  game.status === "won" && game.letters === 0 && typeof game.durationMs === "number";
+
+/** Count a finished daily in this phone's stats. False if it was already counted. */
 export function recordResult(game: SavedGame) {
   const stats = loadStats();
-  if (stats.lastPlayed === game.number) return; // already counted today's game
+  if (stats.lastPlayed === game.number) return false; // already counted today's game
   const won = game.status === "won";
   const streak = won ? (stats.lastWon === game.number - 1 ? stats.streak + 1 : 1) : 0;
   const links = game.links.length;
@@ -84,7 +85,9 @@ export function recordResult(game: SavedGame) {
     lastPlayed: game.number,
     dist,
     linksTotal: (stats.linksTotal ?? 0) + links,
+    bestPerfectMs: isPerfect(game) ? Math.min(stats.bestPerfectMs ?? Infinity, game.durationMs!) : stats.bestPerfectMs,
   } satisfies Stats);
+  return true;
 }
 
 /** The daily streak is broken if you won neither today's nor yesterday's puzzle. */
