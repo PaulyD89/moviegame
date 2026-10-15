@@ -10,7 +10,7 @@ import { msUntilNextPuzzle } from "@/lib/daily-clock";
 import { LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
 import { Logo } from "./Logo";
-import { LetterboxdLink, LetterboxdListButton, useLetterboxdLinks } from "./Letterboxd";
+import { LetterboxdLink, useLetterboxdLinks } from "./Letterboxd";
 import { StatsSheet } from "./StatsSheet";
 import { NotifyButton } from "./push/NotifyButton";
 import { ReminderNudge } from "./push/ReminderNudge";
@@ -164,7 +164,6 @@ export function Results({ game }: { game: SavedGame }) {
           </li>
         ))}
       </ol>
-      <LetterboxdListButton movies={chainMovies(chain)} number={game.number} />
 
       {typeof game.durationMs === "number" && (
         <SpeedSummary
