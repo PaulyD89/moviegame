@@ -40,7 +40,7 @@ export function LetterboxdLink({ movieId, href }: { movieId: number; href?: stri
       className="mt-1 inline-block rounded-md p-1 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 active:scale-95"
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- tiny static badge */}
-      <img src="/letterboxd-logo.png" alt="Letterboxd" width={54} height={29} className="block rounded-sm" />
+      <img src="/letterboxd-logo.png" alt="Letterboxd" width={50} height={24} className="block opacity-85" />
     </a>
   );
 }
