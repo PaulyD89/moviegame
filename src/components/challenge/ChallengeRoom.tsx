@@ -460,28 +460,21 @@ function TurnForm({ state, reload }: { state: ChallengeView; reload: () => Promi
   );
 }
 
-/** Says why this turn is or isn't timed, since the clock otherwise seems to come and go. */
+/** One short line on why this turn is or isn't timed, since the clock otherwise seems to come and go. */
 function ClockNote({ state }: { state: ChallengeView }) {
   if (state.turnDeadline) {
-    return (
-      <p className="-mt-2 text-center text-xs text-zinc-400">
-        ⏱ Everyone&apos;s here, so turns are timed (30s). Leaving won&apos;t stop the clock.
-      </p>
-    );
+    return <p className="-mt-2 text-center text-xs text-zinc-400">⏱ Timed turn while everyone is present</p>;
   }
-  const away = state.players.filter((p) => !p.out && !p.live).map((p) => (p.isYou ? "You" : p.nickname));
+  const away = state.players.filter((p) => !p.out && !p.live).map((p) => (p.isYou ? "you" : p.nickname));
   const who =
     away.length === 0
       ? null
       : away.length === 1
-        ? `${away[0]} ${away[0] === "You" ? "are" : "is"} away`
+        ? away[0] === "you"
+          ? "you're away"
+          : `${away[0]}'s away`
         : `${away.slice(0, -1).join(", ")} and ${away.at(-1)} are away`;
-  return (
-    <p className="text-center text-xs text-zinc-400">
-      🕰 Take your time: {who ? `${who}, so this turn isn't timed.` : "this turn isn't timed."} The clock comes back
-      when everyone&apos;s here at the start of a turn.
-    </p>
-  );
+  return <p className="text-center text-xs text-zinc-400">🕰 No clock{who ? ` while ${who}` : " this turn"}</p>;
 }
 
 function ShotClock({ deadline, offset }: { deadline: number; offset: number }) {
