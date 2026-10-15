@@ -15,7 +15,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <a href="mailto:moviehorsegame@gmail.com" className="underline-offset-2 hover:underline">
             Contact
           </a>
-          <ProgressLink className="underline-offset-2 hover:underline">Save progress</ProgressLink>
+          <ProgressLink className="underline-offset-2 hover:underline">Save Progress</ProgressLink>
         </nav>
         Movie data &amp; images from TMDB. This product uses the TMDB API but is not endorsed or
         certified by TMDB.
