@@ -7,6 +7,7 @@ import { msUntilNextPuzzle } from "@/lib/daily-clock";
 import { LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
 import { Logo } from "./Logo";
+import { StatsSheet } from "./StatsSheet";
 import { NotifyButton } from "./push/NotifyButton";
 import { loadStats, type SavedGame, type Stats } from "./storage";
 
@@ -55,6 +56,7 @@ export function Results({ game }: { game: SavedGame }) {
   // Only rendered client-side, after the game has loaded from storage.
   const [stats] = useState<Stats>(loadStats);
   const [copied, setCopied] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   const won = game.status === "won";
   const { oldest, newest, decades, deepCut } = insights(game);
@@ -126,6 +128,12 @@ export function Results({ game }: { game: SavedGame }) {
           <Stat label="Streak" value={stats.streak} />
           <Stat label="Best" value={stats.maxStreak} />
         </div>
+      )}
+      <button onClick={() => setShowStats(true)} className="-mt-3 text-sm text-zinc-200 underline">
+        See all your stats
+      </button>
+      {showStats && (
+        <StatsSheet todayNumber={game.number} todayLinks={game.links.length} onClose={() => setShowStats(false)} />
       )}
 
       <button

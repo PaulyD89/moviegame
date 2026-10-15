@@ -38,6 +38,7 @@ export type ChallengeView = {
   youSeat: number | null;
   youAreHost: boolean;
   code: string | null;
+  rematchId: string | null;
 };
 
 export type MoveResult =

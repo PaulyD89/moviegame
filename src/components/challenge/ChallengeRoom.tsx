@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { join, move, start, view } from "@/app/challenge/actions";
+import { useRouter } from "next/navigation";
+import { join, move, rematch, start, view } from "@/app/challenge/actions";
 import {
   MAX_PLAYERS,
   SHOT_CLOCK_MS,
@@ -14,6 +15,7 @@ import {
 import { WORD, type Card } from "@/lib/types";
 import { Logo } from "../Logo";
 import { NotifyButton } from "../push/NotifyButton";
+import { recordChallenge } from "../storage";
 import { rememberGame } from "./myGames";
 import { loadNickname, saveNickname } from "./nickname";
 
@@ -547,8 +549,15 @@ function ChainLog({ moves }: { moves: ChallengeMove[] }) {
 /* ---------- Finished ---------- */
 
 function Finished({ state }: { state: ChallengeView }) {
+  const router = useRouter();
   const me = state.players.find((p) => p.isYou);
   const youWon = !!me && state.winnerSeat === me.seat;
+  const [isPending, startTransition] = useTransition();
+
+  // Count this game in the device's challenge stats (once per game).
+  useEffect(() => {
+    if (me) recordChallenge(state.id, youWon);
+  }, [me, state.id, youWon]);
   const standings = [...state.players].sort((a, b) => a.letters - b.letters);
   const chain = state.moves.filter((m) => m.outcome === "correct" && m.answer);
 
@@ -598,9 +607,30 @@ function Finished({ state }: { state: ChallengeView }) {
         </div>
       )}
 
+      {me && state.rematchId ? (
+        <Link
+          href={`/c/${state.rematchId}`}
+          className="flex min-h-12 w-full items-center justify-center rounded-xl bg-amber-400 text-lg font-bold text-black active:scale-[0.98]"
+        >
+          Join the rematch →
+        </Link>
+      ) : me ? (
+        <button
+          disabled={isPending}
+          onClick={() =>
+            startTransition(async () => {
+              const id = await rematch(state.id);
+              if (id) router.push(`/c/${id}`);
+            })
+          }
+          className="min-h-12 w-full rounded-xl bg-amber-400 text-lg font-bold text-black active:scale-[0.98] disabled:opacity-50"
+        >
+          {isPending ? "Setting up…" : "🔁 Rematch"}
+        </button>
+      ) : null}
       <Link
         href="/challenge"
-        className="flex min-h-12 w-full items-center justify-center rounded-xl bg-amber-400 text-lg font-bold text-black active:scale-[0.98]"
+        className="flex min-h-12 w-full items-center justify-center rounded-xl border border-white/20 text-lg font-semibold text-white active:scale-[0.98]"
       >
         New challenge
       </Link>

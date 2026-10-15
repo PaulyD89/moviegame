@@ -5,6 +5,7 @@ import {
   createChallenge,
   findByCode,
   joinChallenge,
+  rematchChallenge,
   startChallenge,
   submitMove,
   summarizeChallenges,
@@ -54,4 +55,9 @@ export async function myGames(ids: string[]) {
   const valid = ids.filter((id) => UUID.test(id)).slice(0, 20);
   if (valid.length === 0) return [];
   return summarizeChallenges(valid, await playerId(false));
+}
+
+export async function rematch(id: string) {
+  checkId(id);
+  return rematchChallenge(id, await playerId(true));
 }

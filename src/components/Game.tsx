@@ -6,10 +6,12 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { pass, startDaily, submitGuess } from "@/app/actions";
 import { puzzleDate } from "@/lib/daily-clock";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
+import { loadNickname } from "./challenge/nickname";
 import { HelpButton, HowToPlay, hasSeenHowTo } from "./HowToPlay";
+import { StatsButton, StatsSheet } from "./StatsSheet";
 import { Logo } from "./Logo";
 import { Results } from "./Results";
-import { loadGame, recordResult, saveGame, type SavedGame } from "./storage";
+import { currentStreak, loadGame, loadStats, recordResult, saveGame, type SavedGame } from "./storage";
 
 
 type Feedback = { tone: "good" | "bad" | "info"; text: string } | null;
@@ -21,6 +23,7 @@ export function Game() {
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [misses, setMisses] = useState(0); // re-triggers the shake animation
   const [showHelp, setShowHelp] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -154,6 +157,7 @@ export function Game() {
   return (
     <div className="flex w-full flex-col items-center gap-4">
       {showHelp && <HowToPlay onClose={closeHelp} />}
+      {showStats && <StatsSheet todayNumber={game.number} onClose={() => setShowStats(false)} />}
       <div className="relative w-full">
         <Logo size="sm" />
         <Link
@@ -163,8 +167,10 @@ export function Game() {
         >
           VS
         </Link>
+        <StatsButton onClick={() => setShowStats(true)} className="right-12" />
         <HelpButton onClick={() => setShowHelp(true)} />
       </div>
+      {game.events.length === 0 && <WelcomeBack todayNumber={game.number} />}
       <Letters count={game.letters} />
 
       <Progress links={game.links.length} />
@@ -283,5 +289,20 @@ function Progress({ links }: { links: number }) {
         />
       ))}
     </div>
+  );
+}
+
+/** A friendly hello for returning players, from stats saved on this device. */
+function WelcomeBack({ todayNumber }: { todayNumber: number }) {
+  // Rendered only after the game loads in the browser, so storage is available.
+  const [stats] = useState(loadStats);
+  const [name] = useState(loadNickname);
+  if (stats.played === 0) return null;
+  const streak = currentStreak(stats, todayNumber);
+  return (
+    <p className="-mb-1 text-center text-sm text-zinc-200">
+      Welcome back{name ? `, ${name}` : ""}!{" "}
+      {streak > 0 ? `🔥 ${streak}-day streak` : `${stats.played} ${stats.played === 1 ? "chain" : "chains"} played`}
+    </p>
   );
 }

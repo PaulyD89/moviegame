@@ -26,6 +26,7 @@ type ChallengeRow = {
   winner_id: string | null;
   version: number;
   code: string | null;
+  rematch_id: string | null;
 };
 
 type PlayerRow = {
@@ -118,25 +119,77 @@ async function commit(c: ChallengeRow, patch: Partial<ChallengeRow>) {
   return (data ?? []).length === 1;
 }
 
-export async function createChallenge(playerId: string, nickname: string) {
-  const supabase = db();
+/** A new empty game with its own join code. */
+async function insertChallenge(hostId: string) {
   // Codes are random; on the rare collision, try another.
-  let data: { id: string } | null = null;
-  for (let attempt = 0; attempt < 5 && !data; attempt++) {
-    const res = await supabase
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const res = await db()
       .from("challenges")
-      .insert({ host_id: playerId, code: newCode() })
+      .insert({ host_id: hostId, code: newCode() })
       .select("id")
       .single<{ id: string }>();
+    if (res.data) return res.data.id;
     if (res.error && res.error.code !== "23505") throw res.error;
-    data = res.data;
   }
-  if (!data) throw new Error("Couldn't create a game code");
-  const joined = await supabase
+  throw new Error("Couldn't create a game code");
+}
+
+export async function createChallenge(playerId: string, nickname: string) {
+  const id = await insertChallenge(playerId);
+  const joined = await db()
     .from("challenge_players")
-    .insert({ challenge_id: data.id, player_id: playerId, seat: 0, nickname });
+    .insert({ challenge_id: id, player_id: playerId, seat: 0, nickname });
   if (joined.error) throw joined.error;
-  return data.id;
+  return id;
+}
+
+/**
+ * Same players, new game. Everyone is already seated (order shifted by one so someone new
+ * goes first), and whoever asked for the rematch hosts it. If two people ask at once,
+ * both end up in the same game.
+ */
+export async function rematchChallenge(id: string, playerId: string): Promise<string | null> {
+  const state = await load(id);
+  if (!state || state.challenge.status !== "finished") return null;
+  const { challenge, players } = state;
+  const me = players.find((p) => p.player_id === playerId);
+  if (!me) return null;
+  if (challenge.rematch_id) return challenge.rematch_id;
+
+  const newId = await insertChallenge(playerId);
+  const rotated = [...players.slice(1), players[0]];
+  const seated = await db()
+    .from("challenge_players")
+    .insert(
+      rotated.map((p, seat) => ({
+        challenge_id: newId,
+        player_id: p.player_id,
+        seat,
+        nickname: p.nickname,
+        last_seen: p.last_seen,
+      })),
+    );
+  if (seated.error) throw seated.error;
+
+  const linked = await db()
+    .from("challenges")
+    .update({ rematch_id: newId })
+    .eq("id", id)
+    .is("rematch_id", null)
+    .select("id");
+  if (!linked.data?.length) {
+    // Someone else's rematch got there first; use theirs.
+    await db().from("challenges").delete().eq("id", newId);
+    return (await load(id))?.challenge.rematch_id ?? null;
+  }
+
+  notifyLater(
+    players.filter((p) => p.player_id !== playerId).map((p) => p.player_id),
+    `🐴 ${me.nickname} wants a rematch!`,
+    "Same crew, new chain. Tap to jump back in.",
+    newId,
+  );
+  return newId;
 }
 
 export async function joinChallenge(id: string, playerId: string, nickname: string) {
@@ -357,6 +410,7 @@ export async function viewChallenge(id: string, playerId: string | null): Promis
     youSeat: me?.seat ?? null,
     youAreHost: c.host_id === playerId,
     code: c.code,
+    rematchId: c.rematch_id,
   };
 }
 
