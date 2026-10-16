@@ -33,6 +33,8 @@ export function Game() {
   const [guess, setGuess] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [misses, setMisses] = useState(0); // re-triggers the shake animation
+  // The first card's clock waits for a tap in the guess box, so newcomers can look around first.
+  const [clockStarted, setClockStarted] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -71,6 +73,7 @@ export function Game() {
   useEffect(() => {
     const onVisible = () => {
       if (!document.hidden && game?.status === "playing" && game.events.length === 0) {
+        setClockStarted(false);
         open().then((g) => g && setGame(g)).catch(() => {});
       }
     };
@@ -137,7 +140,18 @@ export function Game() {
   function closeHelp() {
     setShowHelp(false);
     // Reading the rules shouldn't count against your time.
-    if (game!.events.length === 0) open().then((g) => g && setGame(g)).catch(() => {});
+    if (game!.events.length === 0) {
+      setClockStarted(false);
+      open().then((g) => g && setGame(g)).catch(() => {});
+    }
+  }
+
+  /** First tap in the box on the first card: restart its clock now (the server does the same). */
+  function startClock() {
+    if (clockStarted || game!.events.length > 0) return;
+    setClockStarted(true);
+    setGame((g) => g && { ...g, cardShownAt: Date.now() });
+    open().then((g) => g && setGame(g)).catch(() => {});
   }
 
   /** Send a guess (or a pass, with null) and show what the server decided. */
@@ -254,6 +268,7 @@ export function Game() {
             spellCheck={false}
             enterKeyHint="go"
             onFocus={(e) => {
+              startClock();
               const el = e.currentTarget;
               // Keep the input above the on-screen keyboard.
               setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
@@ -261,7 +276,9 @@ export function Game() {
             disabled={isPending}
             className="w-full rounded-xl border border-amber-400/40 bg-black/40 py-3.5 pr-16 pl-4 text-lg outline-none placeholder:text-zinc-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
           />
-          <InBoxClock key={`box-${cardKey(card)}-${game.links.length}`} shownAt={game.cardShownAt} />
+          {(clockStarted || game.events.length > 0) && (
+            <InBoxClock key={`box-${cardKey(card)}-${game.links.length}`} shownAt={game.cardShownAt} />
+          )}
         </div>
         <div className="flex gap-2">
           <button
