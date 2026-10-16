@@ -14,13 +14,16 @@ const REASONS: Record<string, string> = {
 
 /**
  * A 7-day streak earns a claimed name: unique across players and shown with a gold check in VS
- * games and on the share image. `compact` shows just the claimed name (for the stats sheet).
+ * games and on the share image. `compact` (the stats sheet) shows the claimed name, or a one-line
+ * "Claim it" link that opens the form.
  */
 export function ClaimName({ compact = false }: { compact?: boolean }) {
   const [state, setState] = useState<{ name: string | null; eligible: boolean } | null>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // On the stats sheet the form stays tucked behind a one-line link until tapped.
+  const [expanded, setExpanded] = useState(!compact);
 
   useEffect(() => {
     myName()
@@ -39,7 +42,17 @@ export function ClaimName({ compact = false }: { compact?: boolean }) {
       </p>
     );
   }
-  if (compact) return null;
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="-mt-1 mx-auto block min-h-9 px-2 text-xs font-semibold text-amber-400 underline underline-offset-2"
+      >
+        🔥 You&apos;ve earned a name: Claim it
+      </button>
+    );
+  }
 
   const claim = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +68,10 @@ export function ClaimName({ compact = false }: { compact?: boolean }) {
   };
 
   return (
-    <form onSubmit={claim} className="w-full rounded-2xl border border-amber-400/60 bg-amber-400/10 p-4 text-center">
+    <form
+      onSubmit={claim}
+      className={`w-full rounded-2xl border border-amber-400/60 bg-amber-400/10 text-center ${compact ? "mt-1 p-3" : "p-4"}`}
+    >
       <p className="font-display text-xl tracking-wide text-amber-400">🔥 7-DAY STREAK! CLAIM YOUR NAME</p>
       <p className="mt-1 text-sm text-zinc-300">
         It&apos;s yours alone: nobody else can use it, and it gets a gold ✓ in VS games and on your shared results.
