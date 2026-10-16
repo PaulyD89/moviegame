@@ -5,6 +5,8 @@
     { "path": "/api/cron/new-chain", "schedule": "0 5 * * *" },
     { "path": "/api/cron/instagram", "schedule": "1 4 * * *" },
     { "path": "/api/cron/instagram", "schedule": "1 5 * * *" },
+    { "path": "/api/cron/deepcut", "schedule": "0 19 * * *" },
+    { "path": "/api/cron/deepcut", "schedule": "0 20 * * *" },
     { "path": "/api/cron/streak-reminder", "schedule": "0 0 * * *" },
     { "path": "/api/cron/streak-reminder", "schedule": "0 1 * * *" }
   ]

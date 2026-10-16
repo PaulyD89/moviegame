@@ -8,3 +8,5 @@ create table if not exists app_settings (
 );
 alter table app_settings enable row level security;
 alter table daily_puzzles add column if not exists instagram_trivia text;
+-- Midday "Yesterday's Deepest Cut" post: once per puzzle, caption written once.
+alter table daily_puzzles add column if not exists deepcut_posted_at timestamptz, add column if not exists deepcut_caption text;

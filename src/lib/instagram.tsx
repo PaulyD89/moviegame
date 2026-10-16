@@ -153,13 +153,13 @@ export async function dailyCaption(number: number, card: Card) {
 }
 
 /** The current token: the last refreshed one if we have it, else the one set in Vercel. */
-async function accessToken() {
+export async function accessToken() {
   const { data } = await createAdminClient().from("app_settings").select("value").eq("key", "instagram_token").maybeSingle();
   return (data?.value as string | undefined) ?? process.env.INSTAGRAM_ACCESS_TOKEN ?? null;
 }
 
 /** Long-lived tokens last 60 days; refreshing nightly keeps them alive indefinitely. */
-async function refreshToken(token: string) {
+export async function refreshToken(token: string) {
   const res = await fetch(`${GRAPH.replace(/\/v[\d.]+$/, "")}/refresh_access_token?grant_type=ig_refresh_token&access_token=${token}`);
   const body = (await res.json()) as { access_token?: string };
   if (!res.ok || !body.access_token) throw new Error(`Instagram token refresh failed: ${res.status}`);
@@ -168,7 +168,7 @@ async function refreshToken(token: string) {
     .upsert({ key: "instagram_token", value: body.access_token, updated_at: new Date().toISOString() });
 }
 
-async function graph(path: string, params: Record<string, string>) {
+export async function graph(path: string, params: Record<string, string>) {
   const res = await fetch(`${GRAPH}/${path}`, { method: "POST", body: new URLSearchParams(params) });
   const body = (await res.json()) as { id?: string; error?: { message?: string } };
   if (!res.ok || !body.id) throw new Error(`Instagram ${path}: ${body.error?.message ?? res.status}`);
@@ -176,7 +176,7 @@ async function graph(path: string, params: Record<string, string>) {
 }
 
 /** Instagram fetches and processes the picture after upload; publishing before then fails. */
-async function untilReady(container: string, token: string) {
+export async function untilReady(container: string, token: string) {
   for (let i = 0; i < 20; i++) {
     await new Promise((r) => setTimeout(r, 3000));
     const res = await fetch(`${GRAPH}/${container}?fields=status_code&access_token=${token}`);
