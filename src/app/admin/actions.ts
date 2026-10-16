@@ -1,6 +1,7 @@
 "use server";
 
 import { dismissErrors, endAdminSession, getAdminStats, isAdmin, startAdminSession } from "@/lib/admin";
+import { letterboxdKit } from "@/lib/letterboxd-kit";
 import { suspectMisses } from "@/lib/missed";
 
 export async function login(password: string) {
@@ -29,4 +30,11 @@ export async function dismiss(id?: number) {
 export async function missedAnswers() {
   if (!(await isAdmin())) throw new Error("Not signed in");
   return suspectMisses();
+}
+
+/** Title, description and import file for a day's Letterboxd list (see lib/letterboxd-kit). */
+export async function letterboxdList(number: number) {
+  if (!(await isAdmin())) throw new Error("Not signed in");
+  if (!Number.isInteger(number) || number < 1) throw new Error("Bad puzzle");
+  return letterboxdKit(number);
 }

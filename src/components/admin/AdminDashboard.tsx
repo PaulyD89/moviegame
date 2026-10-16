@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { dismiss, logout, missedAnswers, stats } from "@/app/admin/actions";
+import { dismiss, letterboxdList, logout, missedAnswers, stats } from "@/app/admin/actions";
+import type { LetterboxdKit } from "@/lib/letterboxd-kit";
 import type { SuspectMiss } from "@/lib/missed";
 import type { AdminStats } from "@/lib/admin";
 
@@ -69,6 +70,7 @@ export function AdminDashboard() {
 
       <ErrorBanner errors={data.errors} now={now || loadedAt} onChange={() => refresh.current()} />
       <MissedAnswers />
+      <LetterboxdPanel today={data.puzzleNumber} />
 
       <Section title="Live right now">
         <Tile label="Live games" value={data.live_games} hint="someone on screen in the last 30s" big />
@@ -207,6 +209,98 @@ function ErrorBanner({ errors, now, onChange }: { errors: AdminStats["errors"]; 
         ))}
       </ul>
       <p className="mt-2 text-xs text-zinc-400">Send me these and I&apos;ll dig in. Dismissed errors stay in the log.</p>
+    </section>
+  );
+}
+
+/** Copy-and-upload kit for each day's Letterboxd list, until Letterboxd grants API access. */
+function LetterboxdPanel({ today }: { today: number }) {
+  // Yesterday's chain is finished; today's is still being played.
+  const [number, setNumber] = useState(Math.max(1, today - 1));
+  const [kit, setKit] = useState<LetterboxdKit | null | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const load = (n: number) => {
+    setNumber(n);
+    setBusy(true);
+    letterboxdList(n)
+      .then(setKit)
+      .catch(() => setKit(null))
+      .finally(() => setBusy(false));
+  };
+  const copy = async (label: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(label);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {}
+  };
+  const download = (name: string, csv: string) => {
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const button = "rounded-lg border border-white/15 px-3 py-1.5 text-sm text-zinc-200 disabled:opacity-50";
+  return (
+    <section className="rounded-xl border border-white/10 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xs uppercase tracking-widest text-zinc-300">Letterboxd list</h2>
+        <div className="flex items-center gap-2">
+          <select
+            value={number}
+            onChange={(e) => load(Number(e.target.value))}
+            className="rounded-lg border border-white/15 bg-black px-2 py-1.5 text-sm text-zinc-200"
+          >
+            {Array.from({ length: today }, (_, i) => today - i).map((n) => (
+              <option key={n} value={n}>
+                #{n}
+                {n === today ? " (today, still playing)" : ""}
+              </option>
+            ))}
+          </select>
+          <button onClick={() => load(number)} disabled={busy} className={button}>
+            {busy ? "Building…" : kit ? "Rebuild" : "Build"}
+          </button>
+        </div>
+      </div>
+      {kit === null && <p className="mt-2 text-sm text-zinc-400">Couldn&apos;t build that list.</p>}
+      {kit && (
+        <div className="mt-3 space-y-3 text-sm">
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs uppercase tracking-wider text-zinc-400">Title</span>
+              <button onClick={() => copy("title", kit.title)} className={button}>
+                {copied === "title" ? "Copied ✓" : "Copy"}
+              </button>
+            </div>
+            <p className="mt-1 text-white">{kit.title}</p>
+          </div>
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs uppercase tracking-wider text-zinc-400">Description</span>
+              <button onClick={() => copy("description", kit.description)} className={button}>
+                {copied === "description" ? "Copied ✓" : "Copy"}
+              </button>
+            </div>
+            <p className="mt-1 whitespace-pre-line text-zinc-300">{kit.description}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => download(`movie-horse-${kit.number}-letterboxd.csv`, kit.csv)} className={button}>
+              Download list file ({kit.films.length} films)
+            </button>
+            <button onClick={() => download("movie-horse-openers-letterboxd.csv", kit.openersCsv)} className={button}>
+              Download &ldquo;Every opener&rdquo; file
+            </button>
+          </div>
+          <p className="text-xs text-zinc-400">
+            On Letterboxd: Lists → Start a new list → Import, upload the file, then paste the title and description.
+            For the openers list, import into your existing &ldquo;Every Movie Horse opener&rdquo; list to replace it.
+          </p>
+        </div>
+      )}
     </section>
   );
 }
