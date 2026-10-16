@@ -5,7 +5,7 @@ import { ImageResponse } from "next/og";
 import sharp from "sharp";
 import { logError } from "./errors";
 import { createAdminClient } from "./supabase/admin";
-import { writeTrivia } from "./trivia";
+import { openerFacts, writeTrivia } from "./trivia";
 import { LINKS_TO_WIN, type Card } from "./types";
 
 /**
@@ -75,6 +75,52 @@ export async function dailyCardJpeg(number: number, card: Card) {
   return sharp(Buffer.from(await png.arrayBuffer())).jpeg({ quality: 90 }).toBuffer();
 }
 
+const FIXED_TAGS = [
+  "moviehorse", "moviehorsegame", "movietrivia", "moviequiz", "dailygame", "dailypuzzle", "triviagame",
+  "movies", "film", "cinema", "moviebuff", "cinephile", "letterboxd",
+];
+
+const GENRE_TAGS: Record<string, string> = {
+  Action: "actionmovies", Adventure: "adventuremovies", Animation: "animatedmovies", Comedy: "comedymovies",
+  Crime: "crimemovies", Documentary: "documentary", Drama: "dramamovies", Family: "familymovies",
+  Fantasy: "fantasymovies", History: "historymovies", Horror: "horrormovies", Music: "musicmovies",
+  Mystery: "mysterymovies", Romance: "romancemovies", "Science Fiction": "scifimovies",
+  Thriller: "thrillermovies", War: "warmovies", Western: "westernmovies",
+};
+
+/** "Spider-Man: Homecoming (2017)" → "SpiderManHomecoming". */
+const asTag = (name: string) =>
+  name
+    .replace(/\s*\(\d{4}\)$/, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "And")
+    .split(/[^A-Za-z0-9]+/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ""))
+    .join("");
+
+/**
+ * Fixed tags for the game, then ones that follow the day: the opener, and the decade and
+ * main genre (movie days) or their best-known film (actor days).
+ */
+async function hashtags(card: Card) {
+  const daily = [asTag(card.name)];
+  try {
+    const f = await openerFacts(card);
+    if (f.kind === "movie") {
+      const decade = card.year ? Math.floor(card.year / 10) * 10 : null;
+      if (decade) daily.push(decade >= 2000 ? `${decade}smovies` : `${String(decade).slice(2)}smovies`);
+      const genre = f.genres?.map((g) => GENRE_TAGS[g]).find(Boolean);
+      if (genre) daily.push(genre);
+    } else if (f.best_known_films?.[0]) {
+      daily.push(asTag(f.best_known_films[0].replace(/ as .*$/, "")));
+    }
+  } catch {
+    // The fixed tags and the opener's tag are enough.
+  }
+  return [...new Set([...FIXED_TAGS, ...daily].filter((t) => t.length > 1))].map((t) => `#${t}`).join(" ");
+}
+
 /** The puzzle's trivia line: written once, then saved so every caption for it matches. */
 async function triviaFor(number: number, card: Card) {
   const db = createAdminClient();
@@ -87,7 +133,7 @@ async function triviaFor(number: number, card: Card) {
 
 export async function dailyCaption(number: number, card: Card) {
   const start = card.year ? `${card.name} (${card.year})` : card.name;
-  const trivia = await triviaFor(number, card);
+  const [trivia, tags] = await Promise.all([triviaFor(number, card), hashtags(card)]);
   return [
     `Movie Horse #${number} is live 🐴`,
     "",
@@ -98,7 +144,7 @@ export async function dailyCaption(number: number, card: Card) {
     "",
     "Play free at moviehorsegame.com (link in bio) 🎬",
     "",
-    "#moviehorse #movies #movietrivia #dailygame #film #cinema #letterboxd #moviegame",
+    tags,
   ].join("\n");
 }
 

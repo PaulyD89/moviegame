@@ -20,8 +20,8 @@ async function tmdb(path: string) {
 type Credit = { title?: string; release_date?: string; character?: string; vote_count?: number };
 type Named = { name: string };
 
-/** The facts the writer may use, kept small and specific. */
-async function facts(card: Card) {
+/** The facts the writer may use, kept small and specific (also used for the post's hashtags). */
+export async function openerFacts(card: Card) {
   if (card.kind === "movie") {
     const m = await tmdb(`/movie/${card.id}?append_to_response=credits,keywords`);
     return {
@@ -74,7 +74,7 @@ Reply with the line only.`;
 
 export async function writeTrivia(card: Card): Promise<string | null> {
   try {
-    const data = await facts(card);
+    const data = await openerFacts(card);
     const { text } = await generateText({
       model: MODEL,
       system: SYSTEM,
