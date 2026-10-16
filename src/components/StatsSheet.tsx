@@ -48,7 +48,7 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
           width={640}
           height={320}
           priority
-          className="h-auto w-32 drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)]"
+          className="h-auto w-36 drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)]"
         />
       </h2>
 
@@ -60,7 +60,7 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
           alt="Daily Movie Chain"
           width={600}
           height={200}
-          className="h-auto w-44"
+          className="h-auto w-36"
         />
       </h3>
       <div className="mt-1 grid grid-cols-4 gap-1.5 text-center">
@@ -69,21 +69,29 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
         <Stat label="Streak" value={currentStreak(daily, todayNumber)} />
         <Stat label="Best" value={daily.maxStreak} />
       </div>
-      <p className="mt-1.5 text-center text-xs text-zinc-300">
+      <p className="mt-1 text-center text-xs text-zinc-300">
         Average chain <b className="text-white">{avg}</b> links · 🏁 Fastest perfect{" "}
         <b className="text-white">{daily.bestPerfectMs ? formatTime(daily.bestPerfectMs) : "none yet"}</b>
       </p>
 
       <LinksChart dist={daily.dist} highlight={todayLinks} />
 
-      <h3 className="mt-3 text-[11px] uppercase tracking-widest text-zinc-300">VS Games</h3>
-      <div className="mt-1.5 grid grid-cols-3 gap-1.5 text-center">
+      <h3 className="mt-2 flex justify-center">
+        <Image
+          src="/vs-games-header-600.webp"
+          alt="VS Games"
+          width={600}
+          height={200}
+          className="h-auto w-36"
+        />
+      </h3>
+      <div className="mt-1 grid grid-cols-3 gap-1.5 text-center">
         <Stat label="Played" value={vs.played} />
         <Stat label="Wins" value={vs.won} />
         <Stat label="Win %" value={pct(vs.won, vs.played)} />
       </div>
 
-      <p className="mt-2 text-center text-xs text-zinc-400">
+      <p className="mt-1 text-center text-xs text-zinc-400">
         Stats are saved in this browser.{" "}
         <ProgressLink className="inline-flex min-h-9 items-center font-semibold text-amber-400 underline underline-offset-2">
           📲 Save or restore
@@ -92,7 +100,7 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
       <button
         ref={closeRef}
         onClick={onClose}
-        className="mt-1 min-h-11 w-full rounded-xl bg-amber-400 text-lg font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-[0.98]"
+        className="mt-1 min-h-10 w-full rounded-xl bg-amber-400 text-lg font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-[0.98]"
       >
         Close
       </button>
@@ -104,7 +112,7 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
 function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
   const [showHow, setShowHow] = useState(false);
   return (
-    <section className="mt-2 rounded-2xl border border-amber-400/50 px-3 pt-1 pb-3 text-center">
+    <section className="mt-2 rounded-2xl border border-amber-400/50 px-3 pt-1 pb-2 text-center">
       <div className="flex items-center justify-between">
         <h3 className="text-[11px] uppercase tracking-widest text-amber-400">Global rank</h3>
         <button
@@ -131,19 +139,28 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
           {rank === null ? "Couldn't load your rank right now." : "Finish a daily Movie Chain to get ranked."}
         </p>
       )}
-      {showHow && (
-        <div className="mt-2 text-left">
-          <ul className="space-y-1 text-sm text-zinc-300">
-            <li>🏆 Daily win: <b className="text-white">10 pts</b> + 2 for each letter you didn&apos;t get</li>
-            <li>🎬 Daily finished without winning: <b className="text-white">2 pts</b></li>
-            <li>⚡ Speed bonus: <b className="text-white">+1</b> for each link answered within 20 seconds</li>
-          </ul>
-          <p className="mt-2 text-xs text-zinc-400">
-            Only the daily counts, since everyone plays the same puzzle once a day. VS game wins show in
-            your stats below. The monthly rank starts over on the 1st.
-          </p>
+      {/* Slides open: animating grid rows from 0fr to 1fr lets the height follow the content. */}
+      <div
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
+          showHow ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+        aria-hidden={!showHow}
+        inert={!showHow}
+      >
+        <div className="overflow-hidden">
+          <div className="pt-2 text-left">
+            <ul className="space-y-1 text-sm text-zinc-300">
+              <li>🏆 Daily win: <b className="text-white">10 pts</b> + 2 for each letter you didn&apos;t get</li>
+              <li>🎬 Daily finished without winning: <b className="text-white">2 pts</b></li>
+              <li>⚡ Speed bonus: <b className="text-white">+1</b> for each link answered within 20 seconds</li>
+            </ul>
+            <p className="mt-2 text-xs text-zinc-400">
+              Only the daily counts, since everyone plays the same puzzle once a day. VS game wins show in
+              your stats below. The monthly rank starts over on the 1st.
+            </p>
+          </div>
         </div>
-      )}
+      </div>
     </section>
   );
 }
@@ -151,7 +168,7 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
 /** One rank: the place, then points. A month with no games yet shows a dash. */
 function RankTile({ label, standing }: { label: string; standing: GlobalRank["month"] }) {
   return (
-    <div className="rounded-xl bg-white/5 px-2 py-1.5">
+    <div className="rounded-xl bg-white/5 px-2 py-1">
       <div className="text-[11px] uppercase tracking-wider text-zinc-300">{label}</div>
       <div className="flex items-baseline justify-center gap-2">
         <span className="font-display text-2xl tracking-wide text-white">
@@ -172,7 +189,7 @@ function formatTime(ms: number) {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg bg-white/5 py-1.5">
+    <div className="rounded-lg bg-white/5 py-1">
       <div className="text-xl leading-tight font-bold text-white">{value}</div>
       <div className="text-[11px] text-zinc-300">{label}</div>
     </div>
