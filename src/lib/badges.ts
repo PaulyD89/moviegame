@@ -1,6 +1,6 @@
 /**
  * Achievement badges on the stats screen, in display order. Art lives in /public/badges.
- * Keep `how` short: name + how must fit one line under the badge row on a phone.
+ * Keep `how` short: it sits beside the enlarged badge on a phone.
  */
 export const BADGES = [
   { id: "opening-night", name: "Opening Night", how: "Win your first daily" },
@@ -13,5 +13,5 @@ export const BADGES = [
 
 export type BadgeId = (typeof BADGES)[number]["id"];
 
-/** What the server knows about this player's dailies, for badges a phone can't see on its own. */
-export type BadgeFacts = { won: boolean; perfect: boolean; lightning: boolean };
+/** What the server knows about this player's dailies, for badges and stats a phone can't see on its own. */
+export type BadgeFacts = { won: boolean; perfect: boolean; lightning: boolean; fastestWinMs: number | null };

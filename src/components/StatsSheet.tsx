@@ -43,6 +43,9 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
 
   const pct = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 0);
   const avg = daily.played ? ((daily.linksTotal ?? 0) / daily.played).toFixed(1) : "–";
+  // The server has every win's time; a perfect game on this phone is a win too.
+  const fastestWin = Math.min(facts?.fastestWinMs ?? Infinity, daily.bestPerfectMs ?? Infinity);
+  const fastestWinOk = Number.isFinite(fastestWin);
 
   return (
     <Modal labelledBy="stats-title" onClose={onClose} tight>
@@ -85,8 +88,8 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
         <Stat label="Best" value={daily.maxStreak} />
       </div>
       <p className="mt-1 text-center text-xs text-zinc-300">
-        Average chain <b className="text-white">{avg}</b> links · 🏁 Fastest perfect{" "}
-        <b className="text-white">{daily.bestPerfectMs ? formatTime(daily.bestPerfectMs) : "none yet"}</b>
+        Average chain <b className="text-white">{avg}</b> links · ⏱ Fastest win{" "}
+        <b className="text-white">{fastestWinOk ? formatTime(fastestWin) : "–"}</b>
       </p>
 
       <LinksChart dist={daily.dist} highlight={todayLinks} />
@@ -166,8 +169,8 @@ function BadgeRow({ earned }: { earned: Set<BadgeId> }) {
                 <Image
                   src={`/badges/${b.id}${got ? "" : "-locked"}.webp`}
                   alt=""
-                  width={192}
-                  height={192}
+                  width={256}
+                  height={256}
                   className={`h-11 w-11 ${got ? "drop-shadow-[0_0_8px_rgb(251_191_36/0.45)]" : "opacity-60"}`}
                 />
               </button>
@@ -183,14 +186,23 @@ function BadgeRow({ earned }: { earned: Set<BadgeId> }) {
       >
         <div className="overflow-hidden">
           {badge && (
-            <p className="truncate pt-1.5 text-center text-xs text-zinc-300">
-              <b className={earned.has(badge.id) ? "text-amber-400" : "text-white"}>
-                {badge.name}
-                {earned.has(badge.id) && " ✓"}
-              </b>
-              {" · "}
-              {badge.how}
-            </p>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <Image
+                src={`/badges/${badge.id}${earned.has(badge.id) ? "" : "-locked"}.webp`}
+                alt=""
+                width={256}
+                height={256}
+                className={`h-20 w-20 shrink-0 ${earned.has(badge.id) ? "drop-shadow-[0_0_14px_rgb(251_191_36/0.5)]" : ""}`}
+              />
+              <div className="min-w-0 text-left">
+                <div className={`font-semibold ${earned.has(badge.id) ? "text-amber-400" : "text-white"}`}>
+                  {badge.name}
+                  {earned.has(badge.id) && " ✓"}
+                </div>
+                <div className="text-xs text-zinc-300">{badge.how}</div>
+                <div className="text-[11px] text-zinc-400">{earned.has(badge.id) ? "Earned" : "Not earned yet"}</div>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -240,14 +252,11 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
         <div className="overflow-hidden">
           <div className="pt-2 text-left">
             <ul className="space-y-1 text-sm text-zinc-300">
-              <li>🏆 Daily win: <b className="text-white">10 pts</b> + 2 for each letter you didn&apos;t get</li>
-              <li>🎬 Daily finished without winning: <b className="text-white">2 pts</b></li>
-              <li>⚡ Speed bonus: <b className="text-white">+1</b> for each link answered within 20 seconds</li>
+              <li>🏆 Win: <b className="text-white">10 pts</b> + 2 per letter left</li>
+              <li>🎬 Finished, no win: <b className="text-white">2 pts</b></li>
+              <li>⚡ Speed: <b className="text-white">+1</b> per link under 20s</li>
             </ul>
-            <p className="mt-2 text-xs text-zinc-400">
-              Only the daily counts, since everyone plays the same puzzle once a day. VS game wins show in
-              your stats below. The monthly rank starts over on the 1st.
-            </p>
+            <p className="mt-1.5 text-xs text-zinc-400">Daily games only. Month resets on the 1st.</p>
           </div>
         </div>
       </div>

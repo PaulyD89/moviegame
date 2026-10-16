@@ -67,7 +67,7 @@ export async function myBadgeFacts(): Promise<BadgeFacts | null> {
   if (!pid) return null;
   const { data, error } = await createAdminClient()
     .from("daily_plays")
-    .select("won, letters, fast_links")
+    .select("won, letters, fast_links, duration_ms")
     .eq("player_id", pid)
     .not("finished_at", "is", null);
   if (error) throw error;
@@ -76,5 +76,9 @@ export async function myBadgeFacts(): Promise<BadgeFacts | null> {
     won: wins.length > 0,
     perfect: wins.some((r) => r.letters === 0),
     lightning: wins.some((r) => (r.fast_links ?? 0) >= LINKS_TO_WIN),
+    fastestWinMs: wins.reduce<number | null>(
+      (best, r) => (r.duration_ms && (best === null || r.duration_ms < best) ? r.duration_ms : best),
+      null,
+    ),
   };
 }
