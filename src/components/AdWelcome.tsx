@@ -16,8 +16,8 @@ export function fromAd() {
 }
 
 /**
- * A short welcome for first-time visitors arriving from an ad, who land cold. Shown once per
- * device, before the first move; regulars, Home Screen players and friends' links never see it.
+ * A short welcome for first-time visitors (most arrive cold, from ads). Shown once per device,
+ * before the first move; anyone who has played before never sees it.
  */
 export function AdWelcome({ kind, fresh }: { kind: CardKind; fresh: boolean }) {
   const [open, setOpen] = useState(false);
@@ -28,11 +28,11 @@ export function AdWelcome({ kind, fresh }: { kind: CardKind; fresh: boolean }) {
     try {
       seen = !!localStorage.getItem(SEEN_KEY);
     } catch {}
-    if (!fresh || seen || loadStats().played > 0 || !fromAd()) return;
+    if (!fresh || seen || loadStats().played > 0) return;
     // Shown from the browser only, after the game has loaded.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(true);
-    track("ad_welcome_shown");
+    track("welcome_shown", { ad: fromAd() });
   }, [fresh]);
 
   useEffect(() => {
