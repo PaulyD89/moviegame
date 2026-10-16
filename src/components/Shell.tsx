@@ -7,7 +7,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="flex flex-1 flex-col">{children}</div>
 
-      <footer className="pt-6 text-center text-[11px] leading-relaxed text-zinc-400">
+      <footer className="pt-2 text-center text-[11px] leading-relaxed text-zinc-400">
         <nav className="mb-1.5 flex justify-center gap-4 text-xs text-zinc-300">
           <Link href="/privacy" className="underline-offset-2 hover:underline">
             Privacy
