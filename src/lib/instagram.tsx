@@ -38,7 +38,11 @@ export async function dailyCardJpeg(number: number, card: Card) {
           alignItems: "center",
           padding: "60px 64px",
           color: "white",
-          background: "radial-gradient(circle at 50% 0%, #3b2a12 0%, #0b0908 58%)",
+          // Movie days gold on black, actor days deep burgundy, so the grid alternates.
+          background:
+            card.kind === "movie"
+              ? "radial-gradient(circle at 50% 0%, #3b2a12 0%, #0b0908 58%)"
+              : "radial-gradient(circle at 50% 0%, #6e1a2a 0%, #3a0b16 45%, #1a050b 100%)",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img> */}
