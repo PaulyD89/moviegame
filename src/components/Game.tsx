@@ -166,6 +166,8 @@ export function Game() {
         navigator.vibrate?.(120);
       } else if (result.outcome === "pass") {
         setFeedback({ tone: "info", text: `Passed. That's ${WORD[next.letters - 1]}.` });
+      } else if (result.outcome === "skip") {
+        setFeedback({ tone: "info", text: "Skipped. No extra letter for that one." });
       } else if (result.outcome === "correct") {
         const name = result.answer.name;
         setFeedback({
@@ -262,7 +264,8 @@ export function Game() {
             disabled={isPending}
             className="min-h-12 rounded-xl border border-white/15 px-5 text-zinc-300 active:bg-white/5 disabled:opacity-50"
           >
-            Pass
+            {/* A miss already cost this card its letter, so moving on is free. */}
+            {game.events.at(-1) === "wrong" ? "Skip (free)" : "Pass"}
           </button>
           <button
             type="submit"

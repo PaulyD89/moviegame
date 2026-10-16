@@ -63,7 +63,8 @@ export function HowToPlay({ onClose }: { onClose: () => void }) {
         </Step>
         <Step n={3}>
           Wrong guess or pass? You get a letter. Spell{" "}
-          <b className="whitespace-nowrap text-red-400">M-O-V-I-E</b> and you&apos;re out.
+          <b className="whitespace-nowrap text-red-400">M-O-V-I-E</b> and you&apos;re out. After a
+          miss, skipping that card is free.
         </Step>
       </ol>
 

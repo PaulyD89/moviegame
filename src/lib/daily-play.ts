@@ -5,7 +5,8 @@ import { cardKey, FAST_MS, LINKS_TO_WIN, WORD, type Card } from "./types";
 
 const GRACE_MS = 2_000; // network time between the phone and the server
 
-export type GameEvent = "correct" | "wrong" | "pass";
+/** "skip" is a free pass right after a miss, so one card never costs two letters. */
+export type GameEvent = "correct" | "wrong" | "pass" | "skip";
 
 /** One player's daily game, as kept by the server. */
 export type DailyState = {
@@ -74,7 +75,7 @@ function sanitizeLegacy(g: DailyState, start: Card): DailyState | null {
     card: g.card,
     from: g.from ?? null,
     links: g.links.slice(0, LINKS_TO_WIN - 1).map((l) => ({ card: l.card, answer: l.answer })),
-    events: g.events.slice(0, 20).filter((e): e is GameEvent => ["correct", "wrong", "pass"].includes(e)),
+    events: g.events.slice(0, 20).filter((e): e is GameEvent => ["correct", "wrong", "pass", "skip"].includes(e)),
     used: [...new Set([cardKey(start), ...g.used.filter((u) => typeof u === "string").slice(0, 200)])],
     letters,
     status: "playing",
@@ -139,7 +140,7 @@ export async function openDaily(date: string, playerId: string, legacy: DailySta
 
 export type DailyMove =
   | { outcome: "correct"; answer: Card; close: boolean; fast: boolean; sync: DailySync }
-  | { outcome: "wrong" | "pass"; sync: DailySync }
+  | { outcome: "wrong" | "pass" | "skip"; sync: DailySync }
   | { outcome: "used"; answer: Card }
   | { outcome: "stale"; sync: DailySync | null };
 
@@ -155,13 +156,16 @@ export async function playDaily(date: string, playerId: string, guess: string | 
   const now = new Date(nowMs).toISOString();
   let next: DailyState;
   let cardShownAt = row.card_shown_at;
-  let result: { outcome: "correct"; answer: Card; close: boolean; fast: boolean } | { outcome: "wrong" | "pass" };
+  let result: { outcome: "correct"; answer: Card; close: boolean; fast: boolean } | { outcome: "wrong" | "pass" | "skip" };
 
   if (guess === null) {
     const card = await passCard(s.card, s.from, s.used, date);
-    next = addLetter({ ...s, card, used: [...s.used, ...usedKeysFor(card)] }, "pass");
+    const moved = { ...s, card, used: [...s.used, ...usedKeysFor(card)] };
+    // A miss keeps the card, so it already cost its letter: moving on from it is free.
+    const free = freeSkip(s);
+    next = free ? { ...moved, events: [...s.events, "skip"] } : addLetter(moved, "pass");
     cardShownAt = now;
-    result = { outcome: "pass" };
+    result = { outcome: free ? "skip" : "pass" };
   } else {
     const r = await checkGuess(s.card, guess, s.used, date);
     if (r.outcome === "used") return { outcome: "used", answer: r.answer };
@@ -216,6 +220,11 @@ export async function playDaily(date: string, playerId: string, guess: string | 
     return { outcome: "stale", sync: latest?.state ? sync(number, latest.state, latest.card_shown_at) : null };
   }
   return { ...result, sync: sync(number, next, cardShownAt) };
+}
+
+/** True when the last move was a miss on the current card, so passing it costs nothing. */
+export function freeSkip(s: Pick<DailyState, "events">) {
+  return s.events.at(-1) === "wrong";
 }
 
 function addLetter(s: DailyState, event: "wrong" | "pass"): DailyState {

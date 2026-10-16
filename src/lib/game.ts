@@ -50,7 +50,7 @@ function hash(s: string) {
 }
 
 /**
- * A repeatable number in [0, 1) for a seed. From puzzle #3 on, the hash gets a final mixing
+ * A repeatable number in [0, 1) for a seed. From puzzle #2 on, the hash gets a final mixing
  * step (MurmurHash3's finalizer): without it, seeds that differ only at the end land close
  * together and skew which decade or actor wins. Earlier puzzles keep the old numbers.
  */
@@ -72,9 +72,9 @@ const MIN_YEAR = 1970;
 
 /**
  * Share of picks per decade, aimed at 25-to-55-year-olds (percent; the owner's numbers).
- * Took effect with puzzle #3 (2026-10-16) so #2 stayed consistent all day.
+ * Moved up to puzzle #2 mid-afternoon on 2026-10-15, after players called its actors obscure.
  */
-const AUDIENCE_RULES_FROM = "2026-10-16";
+const AUDIENCE_RULES_FROM = "2026-10-15";
 const DECADE_WEIGHT: Record<number, number> = { 1970: 4, 1980: 17, 1990: 21, 2000: 21, 2010: 21, 2020: 16 };
 
 /** The day a pick belongs to: daily seeds start with the puzzle date; challenges use today. */
