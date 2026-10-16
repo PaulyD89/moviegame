@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 
   const sent = await notifyDailySubscribers({
     title: "Movie Horse",
-    body: `A new Movie Chain is up! 🐴 #${number} starts with ${card.kind === "person" ? "an actor" : "a movie"}.`,
+    body: `A new Movie Chain is up! 🐴 #${number} starts with ${card.name}. Let's go!`,
     url: "/",
     tag: "daily",
   });
