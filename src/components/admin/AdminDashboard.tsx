@@ -80,8 +80,6 @@ export function AdminDashboard() {
       </header>
 
       <ErrorBanner errors={data.errors} now={now || loadedAt} onChange={() => refresh.current()} />
-      <MissedAnswers />
-      <LetterboxdPanel today={data.puzzleNumber} />
 
       <Section title="Live right now">
         <Tile label="Live games" value={data.live_games} hint="someone on screen in the last 30s" big />
@@ -155,6 +153,9 @@ export function AdminDashboard() {
         )}
         <p className="mt-2 text-xs text-zinc-400">Gold name = whose turn it is. Green dot = on screen now.</p>
       </section>
+
+      <MissedAnswers />
+      <LetterboxdPanel today={data.puzzleNumber} />
     </div>
   );
 }
