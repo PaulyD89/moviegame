@@ -77,6 +77,8 @@ export type AdminStats = {
   growth: AdminGrowth;
   /** Players by country over the last 7 days (counted since the country was first recorded). */
   countries: { country: string; players: number }[];
+  /** Players by where they arrived from, last 7 days, with how many moved and finished. */
+  sources: { source: string; players: number; moved: number; finished: number }[];
   errors: {
     /** Not yet dismissed, from the last 7 days. */
     open: { id: number; at: string; source: string; path: string | null; message: string }[];
@@ -96,7 +98,7 @@ export async function getAdminStats(): Promise<AdminStats> {
   const today = puzzleNumber(puzzleDate());
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
   const weekAgo = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
-  const [stats, games, openErrors, dismissedErrors, growth, countries] = await Promise.all([
+  const [stats, games, openErrors, dismissedErrors, growth, countries, sources] = await Promise.all([
     supabase.rpc("admin_stats", { today_number: today }),
     supabase
       .from("challenges")
@@ -119,6 +121,7 @@ export async function getAdminStats(): Promise<AdminStats> {
       .gte("at", weekAgo),
     supabase.rpc("admin_growth", { today_number: today }),
     supabase.rpc("admin_countries", { days: 7 }),
+    supabase.rpc("admin_sources", { days: 7 }),
   ]);
   if (growth.error) throw growth.error;
   if (stats.error) throw stats.error;
@@ -136,6 +139,12 @@ export async function getAdminStats(): Promise<AdminStats> {
     countries: ((countries.data ?? []) as { country: string; players: number }[]).map((c) => ({
       country: c.country,
       players: Number(c.players),
+    })),
+    sources: ((sources.data ?? []) as { source: string; players: number; moved: number; finished: number }[]).map((s) => ({
+      source: s.source,
+      players: Number(s.players),
+      moved: Number(s.moved),
+      finished: Number(s.finished),
     })),
     errors: {
       open: (openErrors.data ?? []) as AdminStats["errors"]["open"],

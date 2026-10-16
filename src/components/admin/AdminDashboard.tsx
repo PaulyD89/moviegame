@@ -96,6 +96,7 @@ export function AdminDashboard() {
       </Section>
 
       <Growth growth={data.growth} />
+      <Sources sources={data.sources} />
       <Countries countries={data.countries} />
 
       <Section title="Challenges">
@@ -363,6 +364,51 @@ const regionName = (() => {
     return null;
   }
 })();
+
+/** Top sources, last 7 days: share of players, and how many of each made a move and finished. */
+function Sources({ sources }: { sources: AdminStats["sources"] }) {
+  const total = sources.reduce((n, s) => n + s.players, 0);
+  const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 100)}%` : "–");
+  return (
+    <section className="rounded-xl border border-white/10 p-4">
+      <h2 className="text-xs uppercase tracking-widest text-zinc-300">Top sources · last 7 days</h2>
+      {total === 0 ? (
+        <p className="mt-2 text-sm text-zinc-400">Recording started Oct 16; this fills in as people play.</p>
+      ) : (
+        <table className="mt-2 w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-zinc-400">
+              <th className="py-1 font-normal">Source</th>
+              <th className="py-1 font-normal">Share</th>
+              <th className="py-1 text-right font-normal">Made a move</th>
+              <th className="py-1 text-right font-normal">Finished</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sources.slice(0, 10).map((s) => {
+              const share = Math.round((s.players / total) * 100);
+              return (
+                <tr key={s.source} className="border-t border-white/5">
+                  <td className="py-1.5 pr-2 text-zinc-200">{s.source}</td>
+                  <td className="py-1.5 pr-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-24 overflow-hidden rounded-full bg-white/10">
+                        <div className="h-full rounded-full bg-amber-400" style={{ width: `${Math.max(2, share)}%` }} />
+                      </div>
+                      <span className="tabular-nums text-zinc-300">{share}%</span>
+                    </div>
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums text-zinc-300">{pct(s.moved, s.players)}</td>
+                  <td className="py-1.5 text-right tabular-nums text-zinc-300">{pct(s.finished, s.players)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
 
 /** Share of players by country, last 7 days. Shows percentages only, never player counts. */
 function Countries({ countries }: { countries: AdminStats["countries"] }) {

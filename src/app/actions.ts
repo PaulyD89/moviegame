@@ -27,10 +27,11 @@ function checkDate(dateStr: string) {
  * Today's game as the server keeps it. `legacy` is a game this phone had in progress from
  * before the server kept games (carried over once, unranked).
  */
-export async function openToday(dateStr: string, legacy: DailyState | null) {
+export async function openToday(dateStr: string, legacy: DailyState | null, source?: string | null) {
   checkDate(dateStr);
   const country = (await headers()).get("x-vercel-ip-country")?.slice(0, 2).toUpperCase() || null;
-  return openDaily(dateStr, await playerId(true), legacy, country);
+  const from = typeof source === "string" ? source.replace(/[^\w ./-]/g, "").slice(0, 40) || null : null;
+  return openDaily(dateStr, await playerId(true), legacy, country, from);
 }
 
 /** A guess, or a pass when `guess` is null. */
