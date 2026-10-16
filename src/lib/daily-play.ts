@@ -89,7 +89,13 @@ function sanitizeLegacy(g: DailyState, start: Card): DailyState | null {
  * `legacy` is a game the phone had in progress before the server kept games; it carries over
  * but doesn't count toward the global rank.
  */
-export async function openDaily(date: string, playerId: string, legacy: DailyState | null): Promise<DailySync | null> {
+export async function openDaily(
+  date: string,
+  playerId: string,
+  legacy: DailyState | null,
+  /** Two-letter country from Vercel's geo header, kept for the admin page. */
+  country: string | null = null,
+): Promise<DailySync | null> {
   const { number, card } = await dailyStart(date);
   const now = new Date().toISOString();
   const row = await loadRow(number, playerId);
@@ -98,7 +104,7 @@ export async function openDaily(date: string, playerId: string, legacy: DailySta
     const state = freshState(card);
     const { error } = await db()
       .from("daily_plays")
-      .insert({ puzzle_number: number, player_id: playerId, state, card_shown_at: now, started_at: now });
+      .insert({ puzzle_number: number, player_id: playerId, state, card_shown_at: now, started_at: now, country });
     if (!error) return sync(number, state, now);
     if (error.code !== "23505") throw error;
     const raced = await loadRow(number, playerId); // opened twice at once

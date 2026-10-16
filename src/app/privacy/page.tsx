@@ -25,7 +25,7 @@ export default function PrivacyPage() {
       <article className="mt-4 space-y-6 text-[15px] leading-relaxed text-zinc-200">
         <header className="text-center">
           <h2 className="font-display text-[1.9rem] tracking-wide text-amber-400">PRIVACY</h2>
-          <p className="text-sm text-zinc-400">Last updated October 14, 2026</p>
+          <p className="text-sm text-zinc-400">Last updated October 16, 2026</p>
         </header>
 
         <p className="text-white">
@@ -51,7 +51,8 @@ export default function PrivacyPage() {
             </li>
             <li>
               <b className="text-white">Daily results.</b> For each daily Movie Chain: how far you got, letters,
-              and time, tied only to the anonymous ID. We use these for overall counts,
+              time, and the country you played from (never your city or exact location), tied only to
+              the anonymous ID. We use these for overall counts,
               the &ldquo;you beat X% of players&rdquo; line, and your global rank. Rankings only show you
               your own place; nobody else can see your rank or results.
             </li>

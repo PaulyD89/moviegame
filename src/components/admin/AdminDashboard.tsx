@@ -83,6 +83,7 @@ export function AdminDashboard() {
       </Section>
 
       <Growth growth={data.growth} />
+      <Countries countries={data.countries} />
 
       <Section title="Challenges">
         <Tile label="In progress" value={data.games_in_progress} />
@@ -246,6 +247,45 @@ function MissedAnswers() {
         </ul>
       )}
       <p className="mt-2 text-xs text-zinc-400">Send me anything here that should have counted and I&apos;ll widen the matching for it.</p>
+    </section>
+  );
+}
+
+const regionName = (() => {
+  try {
+    return new Intl.DisplayNames(["en"], { type: "region" });
+  } catch {
+    return null;
+  }
+})();
+
+/** Share of players by country, last 7 days. Shows percentages only, never player counts. */
+function Countries({ countries }: { countries: AdminStats["countries"] }) {
+  const total = countries.reduce((n, c) => n + c.players, 0);
+  const top = countries.slice(0, 8);
+  const rest = total - top.reduce((n, c) => n + c.players, 0);
+  const rows = [...top.map((c) => ({ label: regionName?.of(c.country) ?? c.country, n: c.players })), ...(rest > 0 ? [{ label: "Other", n: rest }] : [])];
+  return (
+    <section className="rounded-xl border border-white/10 p-4">
+      <h2 className="text-xs uppercase tracking-widest text-zinc-300">Where players are from · last 7 days</h2>
+      {total === 0 ? (
+        <p className="mt-2 text-sm text-zinc-400">Recording started Oct 16; this fills in as people play.</p>
+      ) : (
+        <ul className="mt-2 space-y-1.5">
+          {rows.map((r) => {
+            const pct = Math.round((r.n / total) * 100);
+            return (
+              <li key={r.label} className="flex items-center gap-3 text-sm">
+                <span className="w-36 shrink-0 truncate text-zinc-200">{r.label}</span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-amber-400" style={{ width: `${Math.max(2, pct)}%` }} />
+                </div>
+                <span className="w-10 text-right tabular-nums text-zinc-300">{pct}%</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

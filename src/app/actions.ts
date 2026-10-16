@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { puzzleDate, puzzleNumber } from "@/lib/daily-clock";
 import { answerStats } from "@/lib/answer-stats";
 import { dailyRank } from "@/lib/daily-log";
@@ -27,7 +28,8 @@ function checkDate(dateStr: string) {
  */
 export async function openToday(dateStr: string, legacy: DailyState | null) {
   checkDate(dateStr);
-  return openDaily(dateStr, await playerId(true), legacy);
+  const country = (await headers()).get("x-vercel-ip-country")?.slice(0, 2).toUpperCase() || null;
+  return openDaily(dateStr, await playerId(true), legacy, country);
 }
 
 /** A guess, or a pass when `guess` is null. */
