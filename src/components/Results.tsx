@@ -194,27 +194,35 @@ export function Results({ game }: { game: SavedGame }) {
         ))}
       </ol>
 
-      <TodayRank number={game.number} />
-      <HowYouCompare number={game.number} />
-
-      <div className="flex w-full flex-wrap gap-1.5">
-        {decades.length > 0 && <Chip label="Decades" value={decades.map((d) => `${String(d).slice(2)}s`).join(" · ")} />}
-        {oldest && <Chip label="Oldest" value={oldest.name} />}
-        {newest && newest !== oldest && <Chip label="Newest" value={newest.name} />}
-        {deepCut && <Chip label="Deep cut" value={deepCut.name} />}
+      {/* How your day went: one card, its parts split by thin dividers (empty parts drop out). */}
+      <div className="w-full divide-y divide-white/10 overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/10">
+        <TodayRank number={game.number} />
+        <HowYouCompare number={game.number} />
+        {(decades.length > 0 || oldest || deepCut) && (
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 px-4 py-3.5">
+            {decades.length > 0 && (
+              <Fact icon="decades" label="Decades" value={decades.map((d) => `${String(d).slice(2)}s`).join(" · ")} />
+            )}
+            {deepCut && <Fact icon="gem" label="Deepest pick" value={deepCut.name} />}
+            {oldest && <Fact icon="rewind" label="Oldest" value={oldest.name} />}
+            {newest && newest !== oldest && <Fact icon="sparkle" label="Newest" value={newest.name} />}
+          </dl>
+        )}
+        {stats.played > 0 && (
+          <div className="grid grid-cols-4 divide-x divide-white/10 py-3 text-center">
+            <Stat label="Played" value={String(stats.played)} />
+            <Stat label="Win" value={`${stats.played ? Math.round((stats.won / stats.played) * 100) : 0}%`} />
+            <Stat label="Streak" value={String(stats.streak)} />
+            <Stat label="Best" value={String(stats.maxStreak)} />
+          </div>
+        )}
+        <button
+          onClick={() => setShowStats(true)}
+          className="block min-h-11 w-full px-4 text-center text-sm font-semibold text-amber-400 active:bg-white/5"
+        >
+          See all your stats →
+        </button>
       </div>
-
-      {stats.played > 0 && (
-        <div className="grid w-full grid-cols-4 gap-2 text-center">
-          <Stat label="Played" value={stats.played} />
-          <Stat label="Win %" value={stats.played ? Math.round((stats.won / stats.played) * 100) : 0} />
-          <Stat label="Streak" value={stats.streak} />
-          <Stat label="Best" value={stats.maxStreak} />
-        </div>
-      )}
-      <button onClick={() => setShowStats(true)} className="-mt-3 min-h-11 px-3 text-sm text-zinc-200 underline">
-        See all your stats
-      </button>
       {showStats && (
         <StatsSheet todayNumber={game.number} todayLinks={game.links.length} onClose={() => setShowStats(false)} />
       )}
@@ -226,13 +234,42 @@ export function Results({ game }: { game: SavedGame }) {
   );
 }
 
-/** A small fact about the chain, in a row of chips. */
-function Chip({ label, value }: { label: string; value: string }) {
+/** Line icons for the chain facts, drawn in gold on a faint gold tile. */
+const FACT_ICONS = {
+  decades: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4" />
+    </>
+  ),
+  gem: <path d="M6 3h12l3 5-9 13L3 8zM3 8h18M9 3l3 5 3-5M12 21L9 8m3 13l3-13" />,
+  rewind: <path d="M3 12a9 9 0 109-9 9.7 9.7 0 00-6.7 2.8L3 8M3 3v5h5M12 7v5l3.5 2" />,
+  sparkle: (
+    <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z" />
+  ),
+};
+
+/** A small fact about the chain: icon, label, value. */
+function Fact({ icon, label, value }: { icon: keyof typeof FACT_ICONS; label: string; value: string }) {
   return (
-    <span className="min-w-0 max-w-full truncate rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-200">
-      <span className="mr-1 text-zinc-500">{label}</span>
-      {value}
-    </span>
+    <div className="flex min-w-0 items-center gap-2.5">
+      <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] bg-amber-400/10">
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className="h-[17px] w-[17px] fill-none stroke-amber-400"
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          {FACT_ICONS[icon]}
+        </svg>
+      </span>
+      <div className="min-w-0">
+        <dt className="text-[10.5px] uppercase tracking-[0.16em] text-zinc-400">{label}</dt>
+        <dd className="truncate text-sm font-medium text-white">{value}</dd>
+      </div>
+    </div>
   );
 }
 
@@ -272,25 +309,28 @@ function HowYouCompare({ number }: { number: number }) {
   const rarest = rows.reduce((a, b) => (b.pct < a.pct ? b : a));
 
   return (
-    <section className="w-full">
-      <h3 className="mb-2 text-xs uppercase tracking-widest text-zinc-300">How you compare</h3>
+    <section className="px-4 py-3.5">
+      <h3 className="mb-1.5 text-[10.5px] uppercase tracking-[0.16em] text-zinc-400">How you compare</h3>
       {rarest.pct <= 10 && (
-        <p className="mb-2 rounded-xl bg-amber-400/15 px-4 py-3 text-sm text-amber-200 ring-1 ring-amber-400/50">
+        <p className="mb-2 rounded-xl bg-amber-400/15 px-3 py-2.5 text-sm text-amber-200 ring-1 ring-amber-400/50">
           🦄 Rare pick! Only <b className="text-white">{rarest.pct}%</b> said {rarest.answer.name} for{" "}
           {rarest.prompt.name}.
         </p>
       )}
-      <ul className="space-y-1.5">
+      <ul className="space-y-2.5">
         {rows.map((r) => (
-          <li key={`${r.prompt.kind}-${r.prompt.id}`} className="rounded-xl bg-white/5 px-4 py-2.5 text-sm">
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="min-w-0 truncate text-zinc-300">
-                {r.prompt.name} → <b className="text-white">{r.answer.name}</b>
-              </span>
-              <span className="shrink-0 font-semibold text-amber-400">{r.pct}%</span>
+          <li key={`${r.prompt.kind}-${r.prompt.id}`}>
+            <div className="truncate text-[15px] text-zinc-300">
+              {r.prompt.name} → <b className="text-white">{r.answer.name}</b>
             </div>
-            <div className="text-xs text-zinc-400">
-              {r.top ? `Most said ${r.top.name} (${r.top.pct}%)` : "👑 The most popular answer"}
+            <div className="mt-0.5 text-[13px] text-zinc-400">
+              {r.top ? (
+                `${r.pct}% said it too · most said ${r.top.name}`
+              ) : (
+                <>
+                  <span className="font-semibold text-amber-400"><span className="mr-1">👑</span>Most popular answer</span> · {r.pct}% said it too
+                </>
+              )}
             </div>
           </li>
         ))}
@@ -299,11 +339,11 @@ function HowYouCompare({ number }: { number: number }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs text-zinc-500">{label}</div>
+      <div className="font-display text-[26px] leading-tight tabular-nums">{value}</div>
+      <div className="text-[10.5px] uppercase tracking-[0.14em] text-zinc-400">{label}</div>
     </div>
   );
 }
@@ -352,8 +392,11 @@ function TodayRank({ number }: { number: number }) {
   }, [number]);
   if (!rank || rank.others < 3) return null;
   return (
-    <p className="-mb-2 w-full rounded-xl bg-amber-400/10 px-4 py-2.5 text-center text-sm text-white ring-1 ring-amber-400/40">
-      🏅 You beat <b className="text-amber-400">{rank.percentBeat}%</b> of players today
-    </p>
+    <div className="flex items-center gap-3.5 bg-gradient-to-r from-amber-400/10 to-transparent px-4 py-3.5">
+      <span className="font-display text-[40px] leading-none text-amber-400">{rank.percentBeat}%</span>
+      <span className="text-sm text-zinc-300">
+        You beat <b className="font-semibold text-white">{rank.percentBeat}% of players</b> today
+      </span>
+    </div>
   );
 }
