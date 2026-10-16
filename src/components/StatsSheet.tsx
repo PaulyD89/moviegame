@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Modal } from "./Modal";
 import { ProgressLink } from "./progress/ProgressLink";
 
@@ -40,8 +41,15 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
 
   return (
     <Modal labelledBy="stats-title" onClose={onClose}>
-      <h2 id="stats-title" className="text-center font-display text-3xl tracking-wide text-amber-400">
-        YOUR STATS
+      <h2 id="stats-title" className="flex justify-center">
+        <Image
+          src="/stats-header-640.webp"
+          alt="Your stats"
+          width={640}
+          height={320}
+          priority
+          className="h-auto w-60 drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)]"
+        />
       </h2>
 
       <GlobalRankCard rank={rank} />
