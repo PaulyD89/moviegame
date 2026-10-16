@@ -150,6 +150,15 @@ export function titleKey(s: string): string {
   return nameKey(s.replace(/^\s*(the|a|an)\s+/i, "").replace(/&|\band\b/gi, " "));
 }
 
+/**
+ * The title people actually say, without a leading "The Adventures of": "Elmo in Grouchland"
+ * for "The Adventures of Elmo in Grouchland". Empty if the title has no such prefix.
+ */
+export function shortTitleKey(title: string): string {
+  const rest = title.replace(/^\s*(the\s+)?adventures\s+of\s+/i, "");
+  return rest === title ? "" : titleKey(rest);
+}
+
 /** How many typos we forgive: none under 5 letters, 1 up to 7, 2 from 8 on. */
 export function typoAllowance(key: string): number {
   return key.length < 5 ? 0 : key.length < 8 ? 1 : 2;

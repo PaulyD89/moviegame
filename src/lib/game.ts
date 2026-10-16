@@ -1,6 +1,6 @@
 import "server-only";
 import { puzzleDate, puzzleNumber } from "./daily-clock";
-import { closeness, nameKey, nicknameKey, soundsLike, titleKey } from "./normalize";
+import { closeness, nameKey, nicknameKey, shortTitleKey, soundsLike, titleKey } from "./normalize";
 import {
   getAltTitles,
   getMovie,
@@ -356,6 +356,11 @@ export async function matchGuess(card: Card, guess: string, used: Set<string>): 
       [nameKey(c.title), nameKey(c.original_title), titleKey(c.title), mainTitle(c.title)],
     ),
   );
+  if (items.length === 0) {
+    // Without "The Adventures of" ("Elmo in Grouchland"), if it points to exactly one film.
+    const short = ranked(credits, (c) => closeness([titleKey(guess)], [shortTitleKey(c.title)]));
+    if (new Set(short.items.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: short.items });
+  }
   if (items.length === 0) {
     // A title spelled by ear, if it points to exactly one film.
     const strip = (s: string) => s.replace(/^\s*(the|a|an)\s+/i, "");
