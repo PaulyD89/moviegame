@@ -235,15 +235,17 @@ export function Game() {
       </figure>
 
       <form onSubmit={onSubmit} className="flex w-full flex-col gap-2">
-        <label htmlFor="guess" className="text-center text-sm uppercase tracking-wider text-zinc-400">
+        <p id="guess-label" className="text-center text-sm uppercase tracking-wider text-zinc-400">
           Name {askingFor}
-        </label>
+        </p>
         <input
           ref={inputRef}
           id="guess"
           value={guess}
           onChange={(e) => setGuess(e.target.value)}
-          placeholder={card.kind === "movie" ? "Actor's name" : "Movie title"}
+          placeholder={card.kind === "movie" ? "Type an actor…" : "Type a movie…"}
+          aria-labelledby="guess-label"
+          name="mh-answer"
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="words"
@@ -255,7 +257,7 @@ export function Game() {
             setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
           }}
           disabled={isPending}
-          className="w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3.5 text-lg outline-none placeholder:text-zinc-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
+          className="w-full rounded-xl border border-amber-400/40 bg-black/40 px-4 py-3.5 text-lg outline-none placeholder:text-zinc-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
         />
         <div className="flex gap-2">
           <button

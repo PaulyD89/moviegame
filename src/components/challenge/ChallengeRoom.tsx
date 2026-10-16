@@ -415,14 +415,16 @@ function TurnForm({ state, reload }: { state: ChallengeView; reload: () => Promi
       }}
       className="flex w-full flex-col gap-2"
     >
-      <label htmlFor="guess" className="text-center text-sm uppercase tracking-wider text-amber-400">
+      <p id="guess-label" className="text-center text-sm uppercase tracking-wider text-amber-400">
         Your turn! Name {card.kind === "movie" ? "an actor in this movie" : "a movie this actor was in"}
-      </label>
+      </p>
       <input
         id="guess"
         value={guess}
         onChange={(e) => setGuess(e.target.value)}
-        placeholder={card.kind === "movie" ? "Actor's name" : "Movie title"}
+        placeholder={card.kind === "movie" ? "Type an actor…" : "Type a movie…"}
+        aria-labelledby="guess-label"
+        name="mh-answer"
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="words"
