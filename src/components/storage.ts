@@ -23,6 +23,8 @@ export type Stats = {
   linksTotal?: number;
   /** Fastest win with no letters, in ms. */
   bestPerfectMs?: number;
+  /** Badges earned, kept once earned (a broken streak doesn't take Franchise away). */
+  badges?: string[];
 };
 
 export type ChallengeStats = {
@@ -86,8 +88,16 @@ export function recordResult(game: SavedGame) {
     dist,
     linksTotal: (stats.linksTotal ?? 0) + links,
     bestPerfectMs: isPerfect(game) ? Math.min(stats.bestPerfectMs ?? Infinity, game.durationMs!) : stats.bestPerfectMs,
+    badges: stats.badges,
   } satisfies Stats);
   return true;
+}
+
+/** Remember newly earned badges alongside the stats (so save codes carry them too). */
+export function saveBadges(ids: string[]) {
+  const stats = loadStats();
+  const all = [...new Set([...(stats.badges ?? []), ...ids])];
+  if (all.length !== (stats.badges ?? []).length) write(STATS_KEY, { ...stats, badges: all } satisfies Stats);
 }
 
 /** The daily streak is broken if you won neither today's nor yesterday's puzzle. */

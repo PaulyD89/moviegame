@@ -5,10 +5,11 @@ import { Modal } from "./Modal";
 import { ProgressLink } from "./progress/ProgressLink";
 
 import { useEffect, useRef, useState } from "react";
-import { myGlobalRank } from "@/app/actions";
+import { myBadgeFacts, myGlobalRank } from "@/app/actions";
+import { BADGES, type BadgeFacts, type BadgeId } from "@/lib/badges";
 import type { GlobalRank } from "@/lib/rank";
 import { LINKS_TO_WIN } from "@/lib/types";
-import { currentStreak, loadChallengeStats, loadStats } from "./storage";
+import { currentStreak, loadChallengeStats, loadStats, saveBadges, type ChallengeStats, type Stats } from "./storage";
 
 /** All of this device's stats: daily Movie Chain and challenges. */
 export function StatsSheet({ todayNumber, todayLinks, onClose }: {
@@ -22,11 +23,15 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
   const [vs] = useState(loadChallengeStats);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [rank, setRank] = useState<GlobalRank | null | undefined>(undefined);
+  const [facts, setFacts] = useState<BadgeFacts | null>(null);
 
   useEffect(() => {
     myGlobalRank()
       .then(setRank)
       .catch(() => setRank(null));
+    myBadgeFacts()
+      .then(setFacts)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -51,6 +56,16 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
           className="h-auto w-36 drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)]"
         />
       </h2>
+      <button
+        ref={closeRef}
+        onClick={onClose}
+        aria-label="Close"
+        className="absolute top-2 right-2 flex h-10 w-10 items-center justify-center rounded-full text-xl text-zinc-400 outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-amber-400 active:bg-white/10"
+      >
+        ✕
+      </button>
+
+      <BadgeRow earned={earnedBadges(daily, vs, facts, rank)} />
 
       <GlobalRankCard rank={rank} />
 
@@ -97,14 +112,86 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
           📲 Save or restore
         </ProgressLink>
       </p>
-      <button
-        ref={closeRef}
-        onClick={onClose}
-        className="mt-1 min-h-10 w-full rounded-xl bg-amber-400 text-lg font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-[0.98]"
-      >
-        Close
-      </button>
     </Modal>
+  );
+}
+
+/** Badges earned on this phone, from the server, or saved earlier; newly earned ones are saved. */
+function earnedBadges(
+  daily: Stats,
+  vs: ChallengeStats,
+  facts: BadgeFacts | null,
+  rank: GlobalRank | null | undefined,
+): Set<BadgeId> {
+  const now: Record<BadgeId, boolean> = {
+    "opening-night": daily.won > 0 || !!facts?.won,
+    "one-take": !!daily.bestPerfectMs || !!facts?.perfect,
+    franchise: daily.maxStreak >= 7,
+    "lightning-round": !!facts?.lightning,
+    "top-billing": !!rank?.month.rank && rank.month.rank <= 10,
+    showdown: vs.won > 0,
+  };
+  const earned = new Set([...(daily.badges ?? []), ...BADGES.filter((b) => now[b.id]).map((b) => b.id)]);
+  return earned as Set<BadgeId>;
+}
+
+/** A shelf of six badges, gold once earned. Tap one to see how it's earned. */
+function BadgeRow({ earned }: { earned: Set<BadgeId> }) {
+  const [open, setOpen] = useState<BadgeId | null>(null);
+  const key = [...earned].sort().join();
+  useEffect(() => {
+    if (key) saveBadges(key.split(","));
+  }, [key]);
+  // Keep the last badge's text while the panel slides shut.
+  const [shown, setShown] = useState<BadgeId | null>(null);
+  if (open && open !== shown) setShown(open);
+  const badge = BADGES.find((b) => b.id === shown);
+
+  return (
+    <section aria-label="Badges" className="mt-1">
+      <ul className="flex justify-center gap-1.5">
+        {BADGES.map((b) => {
+          const got = earned.has(b.id);
+          return (
+            <li key={b.id}>
+              <button
+                type="button"
+                onClick={() => setOpen(open === b.id ? null : b.id)}
+                aria-label={`${b.name}${got ? ", earned" : ", not earned yet"}`}
+                aria-expanded={open === b.id}
+                className={`block rounded-full outline-none transition-transform focus-visible:ring-2 focus-visible:ring-amber-400 active:scale-95 ${
+                  open === b.id ? "scale-110" : ""
+                }`}
+              >
+                <Image
+                  src={`/badges/${b.id}${got ? "" : "-locked"}.webp`}
+                  alt=""
+                  width={192}
+                  height={192}
+                  className={`h-11 w-11 ${got ? "drop-shadow-[0_0_8px_rgb(251_191_36/0.45)]" : "opacity-60"}`}
+                />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <div
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
+          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+        aria-live="polite"
+      >
+        <div className="overflow-hidden">
+          {badge && (
+            <p className="pt-1.5 text-center text-xs text-zinc-300">
+              <b className={earned.has(badge.id) ? "text-amber-400" : "text-white"}>{badge.name}</b>
+              {earned.has(badge.id) ? " · Earned ✓ " : " · "}
+              {badge.how}
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

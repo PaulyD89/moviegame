@@ -7,6 +7,9 @@ import { openDaily, playDaily, type DailyState } from "@/lib/daily-play";
 import { playerId } from "@/lib/player";
 import { globalRank } from "@/lib/rank";
 import { allow } from "@/lib/rate-limit";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { LINKS_TO_WIN } from "@/lib/types";
+import type { BadgeFacts } from "@/lib/badges";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -56,4 +59,22 @@ export async function myAnswerStats(puzzle: number) {
   if (!Number.isInteger(puzzle) || !allowed.includes(puzzle)) return [];
   const pid = await playerId(false);
   return pid ? answerStats(puzzle, pid) : [];
+}
+
+/** Daily achievements the server can vouch for, so badges follow a player across phones. */
+export async function myBadgeFacts(): Promise<BadgeFacts | null> {
+  const pid = await playerId(false);
+  if (!pid) return null;
+  const { data, error } = await createAdminClient()
+    .from("daily_plays")
+    .select("won, letters, fast_links")
+    .eq("player_id", pid)
+    .not("finished_at", "is", null);
+  if (error) throw error;
+  const wins = data.filter((r) => r.won);
+  return {
+    won: wins.length > 0,
+    perfect: wins.some((r) => r.letters === 0),
+    lightning: wins.some((r) => (r.fast_links ?? 0) >= LINKS_TO_WIN),
+  };
 }
