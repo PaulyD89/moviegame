@@ -4,6 +4,7 @@ import { Logo } from "@/components/Logo";
 import { Shell } from "@/components/Shell";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/terms" },
   title: "Terms of Use — Movie Horse",
   description: "The ground rules for playing Movie Horse.",
 };

@@ -4,6 +4,7 @@ import { Logo } from "@/components/Logo";
 import { Shell } from "@/components/Shell";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/privacy" },
   title: "Privacy — Movie Horse",
   description: "What Movie Horse stores, what it doesn't, and how to reach us.",
 };

@@ -51,6 +51,23 @@ export function HowToPlay({ onClose }: { onClose: () => void }) {
         HOW TO PLAY
       </h2>
 
+      <HowToPlayRules />
+
+      <button
+        ref={buttonRef}
+        onClick={close}
+        className="mt-5 min-h-12 w-full rounded-xl bg-amber-400 text-lg font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-[0.98]"
+      >
+        Roll film
+      </button>
+    </Modal>
+  );
+}
+
+/** The rules, shared by the ? pop-up and the /how-to-play page (so they never drift apart). */
+export function HowToPlayRules() {
+  return (
+    <>
       <ol className="mt-5 space-y-4 text-[15px] leading-snug text-zinc-200">
         <Step n={1}>
           We show you a <b className="text-white">movie</b>. Name an{" "}
@@ -109,15 +126,7 @@ export function HowToPlay({ onClose }: { onClose: () => void }) {
         Every other day starts with an actor instead: name a movie they were in. Small typos are OK;
         we&apos;ll show you the right spelling. New chain every day.
       </p>
-
-      <button
-        ref={buttonRef}
-        onClick={close}
-        className="mt-5 min-h-12 w-full rounded-xl bg-amber-400 text-lg font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-[0.98]"
-      >
-        Roll film
-      </button>
-    </Modal>
+    </>
   );
 }
 
