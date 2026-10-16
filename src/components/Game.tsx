@@ -16,7 +16,8 @@ import { backupAfterGame } from "./progress/snapshot";
 import { InBoxClock } from "./SpeedClock";
 import { UsedWarning } from "./UsedWarning";
 import { Results } from "./Results";
-import { currentStreak, loadGame, loadStats, recordResult, saveGame, type SavedGame } from "./storage";
+import { currentStreak, loadGame, recordResult, saveGame, type SavedGame } from "./storage";
+import { useSyncedStats } from "./useStats";
 
 const SLOW = "Whoa, slow down a sec. Try again in a moment.";
 
@@ -378,7 +379,7 @@ function Progress({ links }: { links: number }) {
 /** A friendly hello for returning players, from stats saved on this device. */
 function WelcomeBack({ todayNumber }: { todayNumber: number }) {
   // Rendered only after the game loads in the browser, so storage is available.
-  const [stats] = useState(loadStats);
+  const stats = useSyncedStats();
   const [name] = useState(loadNickname);
   if (stats.played === 0) return null;
   const streak = currentStreak(stats, todayNumber);

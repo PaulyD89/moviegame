@@ -14,7 +14,8 @@ import { LetterboxdLink, useLetterboxdLinks } from "./Letterboxd";
 import { StatsSheet } from "./StatsSheet";
 import { NotifyButton } from "./push/NotifyButton";
 import { ReminderNudge } from "./push/ReminderNudge";
-import { isPerfect, loadStats, type SavedGame, type Stats } from "./storage";
+import { isPerfect, type SavedGame, type Stats } from "./storage";
+import { useSyncedStats } from "./useStats";
 
 function formatTime(ms: number) {
   const s = Math.round(ms / 1000);
@@ -79,7 +80,7 @@ export function shareText(game: SavedGame) {
 
 export function Results({ game }: { game: SavedGame }) {
   // Only rendered client-side, after the game has loaded from storage.
-  const [stats] = useState<Stats>(loadStats);
+  const stats: Stats = useSyncedStats();
   const [copied, setCopied] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const card = useShareCard(game);

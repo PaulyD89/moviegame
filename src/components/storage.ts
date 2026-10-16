@@ -14,8 +14,10 @@ export type SavedGame = DailyState & {
 export type Stats = {
   played: number;
   won: number;
+  /** Days in a row with a finished daily, won or lost (was wins in a row before "played"). */
   streak: number;
   maxStreak: number;
+  streakKind?: "played";
   lastWon?: number;
   lastPlayed?: number;
   /** dist[n] = how many daily games ended with n links made (0–10). */
@@ -75,7 +77,7 @@ export function recordResult(game: SavedGame) {
   const stats = loadStats();
   if (stats.lastPlayed === game.number) return false; // already counted today's game
   const won = game.status === "won";
-  const streak = won ? (stats.lastWon === game.number - 1 ? stats.streak + 1 : 1) : 0;
+  const streak = stats.lastPlayed === game.number - 1 ? stats.streak + 1 : 1;
   const links = game.links.length;
   const dist = Array.from({ length: 11 }, (_, i) => (stats.dist?.[i] ?? 0) + (i === links ? 1 : 0));
   write(STATS_KEY, {
@@ -89,6 +91,7 @@ export function recordResult(game: SavedGame) {
     linksTotal: (stats.linksTotal ?? 0) + links,
     bestPerfectMs: isPerfect(game) ? Math.min(stats.bestPerfectMs ?? Infinity, game.durationMs!) : stats.bestPerfectMs,
     badges: stats.badges,
+    streakKind: "played",
   } satisfies Stats);
   return true;
 }
@@ -100,9 +103,23 @@ export function saveBadges(ids: string[]) {
   if (all.length !== (stats.badges ?? []).length) write(STATS_KEY, { ...stats, badges: all } satisfies Stats);
 }
 
-/** The daily streak is broken if you won neither today's nor yesterday's puzzle. */
+/** The daily streak is broken if you finished neither today's nor yesterday's puzzle. */
 export function currentStreak(stats: Stats, todayNumber: number) {
-  return stats.lastWon !== undefined && stats.lastWon >= todayNumber - 1 ? stats.streak : 0;
+  return stats.lastPlayed !== undefined && stats.lastPlayed >= todayNumber - 1 ? stats.streak : 0;
+}
+
+/** Take the server's count of days played in a row (it has every finished daily, on any phone). */
+export function saveStreak(streak: number, best: number, lastPlayed: number | null) {
+  const stats = loadStats();
+  const next = {
+    ...stats,
+    streak,
+    maxStreak: Math.max(best, stats.streakKind === "played" ? stats.maxStreak : 0),
+    lastPlayed: Math.max(stats.lastPlayed ?? 0, lastPlayed ?? 0) || stats.lastPlayed,
+    streakKind: "played" as const,
+  };
+  if (JSON.stringify(next) !== JSON.stringify(stats)) write(STATS_KEY, next satisfies Stats);
+  return next;
 }
 
 export function loadChallengeStats(): ChallengeStats {

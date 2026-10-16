@@ -9,7 +9,8 @@ import { myBadgeFacts, myGlobalRank } from "@/app/actions";
 import { BADGES, type BadgeFacts, type BadgeId } from "@/lib/badges";
 import type { GlobalRank } from "@/lib/rank";
 import { LINKS_TO_WIN } from "@/lib/types";
-import { currentStreak, loadChallengeStats, loadStats, saveBadges, type ChallengeStats, type Stats } from "./storage";
+import { currentStreak, loadChallengeStats, saveBadges, type ChallengeStats, type Stats } from "./storage";
+import { useSyncedStats } from "./useStats";
 
 /** All of this device's stats: daily Movie Chain and challenges. */
 export function StatsSheet({ todayNumber, todayLinks, onClose }: {
@@ -19,7 +20,7 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
   onClose: () => void;
 }) {
   // Only opened by a tap, so reading storage during the first render is safe.
-  const [daily] = useState(loadStats);
+  const daily = useSyncedStats();
   const [vs] = useState(loadChallengeStats);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [rank, setRank] = useState<GlobalRank | null | undefined>(undefined);

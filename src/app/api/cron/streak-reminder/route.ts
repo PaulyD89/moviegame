@@ -4,7 +4,7 @@ import { deliver, type SubscriptionRow } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * 8pm Eastern (5pm Pacific): nudge people on a win streak who haven't played today's chain.
+ * 8pm Eastern (5pm Pacific): nudge people on a streak (days played in a row) who haven't played today's chain.
  * Only devices that turned on the nightly reminder get it. Vercel Cron calls this at 00:00 and
  * 01:00 UTC; only the run that lands in the 8pm hour in New York does anything.
  */

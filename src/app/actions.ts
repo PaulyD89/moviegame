@@ -82,3 +82,26 @@ export async function myBadgeFacts(): Promise<BadgeFacts | null> {
     ),
   };
 }
+
+/** Days in a row this player finished the daily (won or lost), and their best run. */
+export async function myStreak() {
+  const pid = await playerId(false);
+  if (!pid) return null;
+  const { data, error } = await createAdminClient()
+    .from("daily_plays")
+    .select("puzzle_number")
+    .eq("player_id", pid)
+    .not("finished_at", "is", null)
+    .order("puzzle_number");
+  if (error) throw error;
+  const days = data.map((r) => r.puzzle_number as number);
+  let best = 0;
+  let run = 0;
+  days.forEach((n, i) => {
+    run = i > 0 && days[i - 1] === n - 1 ? run + 1 : 1;
+    best = Math.max(best, run);
+  });
+  const today = puzzleNumber(puzzleDate());
+  const last = days.at(-1) ?? null;
+  return { current: last !== null && last >= today - 1 ? run : 0, best, lastPlayed: last };
+}

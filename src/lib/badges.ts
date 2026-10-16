@@ -5,7 +5,7 @@
 export const BADGES = [
   { id: "opening-night", name: "Opening Night", how: "Win your first daily" },
   { id: "one-take", name: "One Take", how: "Win a daily with no letters" },
-  { id: "franchise", name: "Franchise", how: "Win the daily 7 days in a row" },
+  { id: "franchise", name: "Franchise", how: "Play the daily 7 days in a row" },
   { id: "lightning-round", name: "Lightning Round", how: "All 10 links under 20s each" },
   { id: "top-billing", name: "Top Billing", how: "Make the top 10 for a month" },
   { id: "showdown", name: "Showdown", how: "Win your first VS game" },
