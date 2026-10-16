@@ -84,7 +84,7 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
       <div className="mt-1 grid grid-cols-4 gap-1.5 text-center">
         <Stat label="Played" value={daily.played} />
         <Stat label="Win %" value={pct(daily.won, daily.played)} />
-        <Stat label="Streak" value={currentStreak(daily, todayNumber)} />
+        <StreakStat value={currentStreak(daily, todayNumber)} />
         <Stat label="Best" value={daily.maxStreak} />
       </div>
       <p className="mt-1 text-center text-xs text-zinc-300">
@@ -284,6 +284,27 @@ function RankTile({ label, standing }: { label: string; standing: GlobalRank["mo
 function formatTime(ms: number) {
   const s = Math.round(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** The streak tile, wrapped in flames while a streak is alive. */
+function StreakStat({ value }: { value: number }) {
+  return (
+    <div className="relative rounded-lg bg-white/5 py-1">
+      {value > 0 && (
+        <Image
+          src="/streak-flames.webp"
+          alt=""
+          width={320}
+          height={170}
+          className="pointer-events-none absolute -inset-x-2 -bottom-1.5 h-[calc(100%+0.5rem)] w-[calc(100%+1rem)] max-w-none origin-bottom animate-flicker object-fill"
+        />
+      )}
+      <div className="relative text-xl leading-tight font-bold text-white drop-shadow-[0_1px_2px_rgb(0_0_0/0.8)]">
+        {value}
+      </div>
+      <div className="relative text-[11px] text-zinc-100 drop-shadow-[0_1px_2px_rgb(0_0_0/0.8)]">Streak</div>
+    </div>
+  );
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
