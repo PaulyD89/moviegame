@@ -3,7 +3,7 @@
 import { Modal } from "./Modal";
 
 import { useEffect, useRef } from "react";
-import { LINKS_TO_WIN, WORD } from "@/lib/types";
+import { FAST_MS, LINKS_TO_WIN, WORD } from "@/lib/types";
 
 const SEEN_KEY = "moviegame:seenHowTo";
 
@@ -65,6 +65,10 @@ export function HowToPlay({ onClose }: { onClose: () => void }) {
           Wrong guess or pass? You get a letter. Spell{" "}
           <b className="whitespace-nowrap text-red-400">M-O-V-I-E</b> and you&apos;re out. After a
           miss, skipping that card is free.
+        </Step>
+        <Step n={4}>
+          <b className="text-amber-300">⚡ Speed bonus:</b> answer within {FAST_MS / 1000} seconds for an extra
+          point. It&apos;s only a bonus. Run out of time and you just miss the point, never a letter.
         </Step>
       </ol>
 
