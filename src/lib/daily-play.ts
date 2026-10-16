@@ -159,7 +159,7 @@ export async function playDaily(date: string, playerId: string, guess: string | 
   let result: { outcome: "correct"; answer: Card; close: boolean; fast: boolean } | { outcome: "wrong" | "pass" | "skip" };
 
   if (guess === null) {
-    const card = await passCard(s.card, s.from, s.used, date);
+    const card = await passCard(s.card, s.from, s.used, date, ["pass", "skip"].includes(s.events.at(-1) ?? ""));
     const moved = { ...s, card, used: [...s.used, ...usedKeysFor(card)] };
     // A miss keeps the card, so it already cost its letter: moving on from it is free.
     const free = freeSkip(s);
@@ -167,7 +167,8 @@ export async function playDaily(date: string, playerId: string, guess: string | 
     cardShownAt = now;
     result = { outcome: free ? "skip" : "pass" };
   } else {
-    const r = await checkGuess(s.card, guess, s.used, date);
+    // A right answer here is link number links+1, and leads to card number links+2.
+    const r = await checkGuess(s.card, guess, s.used, date, s.links.length + 2);
     if (r.outcome === "used") return { outcome: "used", answer: r.answer };
     if (r.outcome === "wrong") {
       next = addLetter(s, "wrong"); // same card, same clock

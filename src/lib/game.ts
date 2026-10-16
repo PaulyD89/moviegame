@@ -75,6 +75,15 @@ const MIN_YEAR = 1970;
  * Moved up to puzzle #2 mid-afternoon on 2026-10-15, after players called its actors obscure.
  */
 const AUDIENCE_RULES_FROM = "2026-10-15";
+/**
+ * From puzzle #4 (2026-10-17): cards 8-10 of the daily are a notch harder (see LATE_CARD), and a
+ * second pass in a row deals a well-known film instead of digging deeper into the same actor.
+ */
+const SHAPE_RULES_FROM = "2026-10-17";
+const shapeRules = (seed: string) => rulesDate(seed) >= SHAPE_RULES_FROM;
+/** Daily cards from here on (1 = the opener) get the harder pick. */
+export const LATE_CARD = 8;
+
 const DECADE_WEIGHT: Record<number, number> = { 1970: 4, 1980: 17, 1990: 21, 2000: 21, 2010: 21, 2020: 16 };
 
 /** The day a pick belongs to: daily seeds start with the puzzle date; challenges use today. */
@@ -114,12 +123,14 @@ export function usedKeysFor(card: Card) {
 }
 
 /** A well-known movie this person acted in that hasn't been used yet (1970+, or rarely the 1960s). */
-async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string): Promise<Card | null> {
+async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string, late = false): Promise<Card | null> {
   const eligible = person.movie_credits.cast.filter(
     (c) =>
       c.poster_path &&
       !used.has(cardKey({ kind: "movie", id: c.id })) &&
       !NOT_A_ROLE.test(c.character ?? "") &&
+      // Playing yourself ("Tom Hanks" in The Simpsons Movie) is a cameo, not a role (from #4).
+      (!shapeRules(seed) || nameKey((c.character ?? "").replace(/\([^)]*\)/g, "")) !== nameKey(person.name)) &&
       // A few TMDB credits come without genres (one of Michael Keaton's did, and crashed his answers).
       !(c.genre_ids ?? []).some((g) => SKIP_GENRES.has(g)),
   );
@@ -133,10 +144,9 @@ async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string)
   }
   const credits = eligible.filter((c) => yearWeight(yearOf(c.release_date)) > 0);
   for (const minVotes of [2000, 500, 50]) {
-    const famous = credits
-      .filter((c) => c.vote_count >= minVotes)
-      .sort((a, b) => b.vote_count - a.vote_count)
-      .slice(0, 12);
+    const ranked = credits.filter((c) => c.vote_count >= minVotes).sort((a, b) => b.vote_count - a.vote_count);
+    // Late cards skip the actor's three biggest films, when there are enough others to choose from.
+    const famous = late && ranked.length >= 6 ? ranked.slice(3, 15) : ranked.slice(0, 12);
     const pick = pickWeighted(famous, seed, (c) => yearWeight(yearOf(c.release_date), seed));
     if (pick) return movieCard(await getMovie(pick.id));
   }
@@ -151,7 +161,7 @@ const isClassic = (p: TmdbPerson) => !!p.deathday || Number(p.birthday?.slice(0,
  * A top-billed actor in this movie who hasn't been used yet. About a quarter of picks may be
  * classic (deceased or born before 1940); the rest come from current actors when the cast has them.
  */
-async function nextPersonFor(movie: TmdbMovie, used: Set<string>, seed: string): Promise<Card | null> {
+async function nextPersonFor(movie: TmdbMovie, used: Set<string>, seed: string, late = false): Promise<Card | null> {
   const cast = movie.credits.cast.filter(
     (c) =>
       c.profile_path &&
@@ -159,8 +169,10 @@ async function nextPersonFor(movie: TmdbMovie, used: Set<string>, seed: string):
       !NOT_A_ROLE.test(c.character ?? ""),
   );
   const wantClassic = roll(`${seed}:era`) < CLASSIC_SHARE;
-  for (const maxOrder of [6, 12, 30]) {
-    const tier = cast.filter((c) => c.order < maxOrder);
+  // Late cards look past the two leads to the supporting cast first.
+  const tiers = late ? [[2, 10], [0, 12], [0, 30]] : [[0, 6], [0, 12], [0, 30]];
+  for (const [minOrder, maxOrder] of tiers) {
+    const tier = cast.filter((c) => c.order >= minOrder && c.order < maxOrder);
     if (tier.length === 0) continue;
     const people = (await Promise.all(tier.map((c) => getPerson(c.id).catch(() => null)))).filter(
       (p): p is TmdbPerson => !!p,
@@ -169,7 +181,9 @@ async function nextPersonFor(movie: TmdbMovie, used: Set<string>, seed: string):
       // Recognizable actors come up more, but not every time: weight grows with the square root
       // of their well-known films (a lead star ~2x a working character actor, ~10x an unknown).
       // Classic actors count a third as much, which keeps them to about a quarter of picks.
-      const weight = (p: TmdbPerson) => (1 + 2 * Math.sqrt(famousCredits(p))) * (isClassic(p) ? 1 / 3 : 1);
+      // Late cards lean on fame half as much.
+      const fame = late ? 1 : 2;
+      const weight = (p: TmdbPerson) => (1 + fame * Math.sqrt(famousCredits(p))) * (isClassic(p) ? 1 / 3 : 1);
       const pick = pickWeighted(people, seed, weight);
       if (pick) return personCard(pick);
       continue;
@@ -194,8 +208,10 @@ function decadeBalanced(pool: StarterMovie[], seed: string) {
 }
 
 /** Fresh card of the given kind, for dead ends, passes, and new chains in challenges. */
-async function freshCard(kind: Card["kind"], used: Set<string>, seed: string): Promise<Card> {
-  const pool = (await getStarterPool()).filter((m) => !used.has(cardKey({ kind: "movie", id: m.id })));
+async function freshCard(kind: Card["kind"], used: Set<string>, seed: string, headliners = false): Promise<Card> {
+  const pool = (await getStarterPool()).filter(
+    (m) => !used.has(cardKey({ kind: "movie", id: m.id })) && (!headliners || isHeadliner(m)),
+  );
   const pick = pickWeighted(pool, seed, decadeBalanced(pool, seed))!;
   const movie = await getMovie(pick.id);
   if (kind === "movie") return movieCard(movie);
@@ -400,6 +416,8 @@ export async function checkGuess(
   guess: string,
   usedKeys: string[],
   dateStr: string,
+  /** Which daily card the answer leads to (1 = the opener), for the harder late cards. */
+  nextCardNumber?: number,
 ): Promise<GuessResult> {
   const used = new Set([...usedKeys, cardKey(card)]);
   const result = await matchGuess(card, guess, used);
@@ -407,12 +425,14 @@ export async function checkGuess(
 
   const { answer, close } = result;
   used.add(cardKey(answer));
-  const seed = `${dateStr}:${cardKey(answer)}`;
+  const late = shapeRules(dateStr) && (nextCardNumber ?? 0) >= LATE_CARD;
+  // Late picks get their own seed: the same answer gives the same card at the same depth.
+  const seed = `${dateStr}:${cardKey(answer)}${late ? ":late" : ""}`;
   const next =
     answer.kind === "person"
-      ? ((await nextMovieFor(await getPerson(answer.id), used, seed)) ??
+      ? ((await nextMovieFor(await getPerson(answer.id), used, seed, late)) ??
         (await freshCard("movie", used, seed)))
-      : ((await nextPersonFor(await getMovie(answer.id), used, seed)) ??
+      : ((await nextPersonFor(await getMovie(answer.id), used, seed, late)) ??
         (await freshCard("person", used, seed)));
   return { outcome: "correct", answer, next, close };
 }
@@ -423,9 +443,13 @@ export async function passCard(
   from: Card | null,
   usedKeys: string[],
   dateStr: string,
+  /** The previous move was a pass too: deal a well-known film rather than dig deeper. */
+  afterPass = false,
 ): Promise<Card> {
   const used = new Set([...usedKeys, cardKey(card)]);
   const seed = `${dateStr}:${from ? cardKey(from) : "start"}`;
+  // Passing again usually means the actor's remaining films are getting obscure; reset to a well-known one.
+  if (afterPass && shapeRules(dateStr)) return freshCard(card.kind, used, `${seed}:fresh:${cardKey(card)}`, true);
   if (from?.kind === "person" && card.kind === "movie") {
     const next = await nextMovieFor(await getPerson(from.id), used, seed);
     if (next) return next;
