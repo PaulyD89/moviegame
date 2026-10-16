@@ -43,7 +43,7 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
     <Modal labelledBy="stats-title" onClose={onClose} tight>
       <h2 id="stats-title" className="flex justify-center">
         <Image
-          src="/stats-header-640.webp"
+          src="/stats-header-v2-640.webp"
           alt="Your stats"
           width={640}
           height={320}
