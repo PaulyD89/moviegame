@@ -13,6 +13,27 @@ const SAME_WORD: Record<string, string> = {
   senior: "sr",
   versus: "vs",
   mount: "mt",
+  // Spelled-out numbers: "Ocean's Eleven" = "Ocean's 11".
+  one: "1",
+  two: "2",
+  three: "3",
+  four: "4",
+  five: "5",
+  six: "6",
+  seven: "7",
+  eight: "8",
+  nine: "9",
+  ten: "10",
+  eleven: "11",
+  twelve: "12",
+  thirteen: "13",
+  fourteen: "14",
+  fifteen: "15",
+  sixteen: "16",
+  seventeen: "17",
+  eighteen: "18",
+  nineteen: "19",
+  twenty: "20",
   ii: "2",
   iii: "3",
   iv: "4",
@@ -106,9 +127,12 @@ export function nicknameKey(s: string): string {
   return [NICK[words[0]] ?? words[0], ...words.slice(1)].join("");
 }
 
-/** Key without a leading article, so "Matrix" matches "The Matrix". */
+/**
+ * Key without a leading article or any "and"/"&", so "Matrix" matches "The Matrix" and
+ * "Planes Trains Automobiles" matches "Planes, Trains and Automobiles".
+ */
 export function titleKey(s: string): string {
-  return nameKey(s.replace(/^\s*(the|a|an)\s+/i, ""));
+  return nameKey(s.replace(/^\s*(the|a|an)\s+/i, "").replace(/&|\band\b/gi, " "));
 }
 
 /** How many typos we forgive: none under 5 letters, 1 up to 7, 2 from 8 on. */
