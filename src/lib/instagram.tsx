@@ -171,6 +171,18 @@ async function graph(path: string, params: Record<string, string>) {
   return body.id;
 }
 
+/** Instagram fetches and processes the picture after upload; publishing before then fails. */
+async function untilReady(container: string, token: string) {
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const res = await fetch(`${GRAPH}/${container}?fields=status_code&access_token=${token}`);
+    const { status_code } = (await res.json()) as { status_code?: string };
+    if (status_code === "FINISHED") return;
+    if (status_code === "ERROR" || status_code === "EXPIRED") throw new Error(`Instagram media ${status_code}`);
+  }
+  throw new Error("Instagram media still processing after a minute");
+}
+
 /**
  * Post tonight's chain once. Marks the puzzle first, so the second nightly cron run (or a
  * retry) can't post twice; a failure is logged for /admin instead of retried.
@@ -194,6 +206,7 @@ export async function postDailyToInstagram(number: number, card: Card) {
       caption: await dailyCaption(number, card),
       access_token: token,
     });
+    await untilReady(container, token);
     const post = await graph(`${userId}/media_publish`, { creation_id: container, access_token: token });
     await refreshToken(token).catch((e) => logError("cron", String(e), "/api/cron/new-chain"));
     return post;

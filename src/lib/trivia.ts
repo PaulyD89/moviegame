@@ -79,7 +79,8 @@ export async function writeTrivia(card: Card): Promise<string | null> {
       model: MODEL,
       system: SYSTEM,
       prompt: `Facts (JSON):\n${JSON.stringify(data)}`,
-      maxOutputTokens: 200,
+      // Room to think before the one line; 200 left some answers empty.
+      maxOutputTokens: 1000,
     });
     const line = text.trim().replace(/^["“]|["”]$/g, "").replace(/\s+/g, " ");
     return line && line.length <= 260 && !line.includes("#") ? line : null;
