@@ -24,9 +24,11 @@ export function ErrorReporter() {
     };
     const onError = (e: ErrorEvent) => {
       // Skip errors from other companies' code: in-app browsers (Instagram, Facebook) and
-      // extensions inject scripts that throw when the user closes them. Ours come from this site.
-      const ours = !e.filename || e.filename.startsWith(location.origin);
-      if (!ours || (e.message === "Script error." && !e.filename)) return;
+      // extensions inject scripts that throw when the user closes them. Ours come from the site's
+      // /_next/ script files; an injected script reports the page itself as its source.
+      const ours = !e.filename || e.filename.startsWith(`${location.origin}/_next/`);
+      const appBridge = /webkit\.messageHandlers|Java object is gone|iabjs:/i.test(`${e.message} ${e.filename}`);
+      if (!ours || appBridge || (e.message === "Script error." && !e.filename)) return;
       const where = e.filename ? ` @ ${e.filename.replace(location.origin, "")}:${e.lineno}:${e.colno}` : "";
       report(`${e.message}${where} [${browser()}]`);
     };
