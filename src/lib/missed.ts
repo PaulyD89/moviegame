@@ -1,6 +1,7 @@
 import "server-only";
 import { wordKeys, titleKey, nameKey } from "./normalize";
 import { createAdminClient } from "./supabase/admin";
+import { matchGuess } from "./game";
 import { getMovie, getPerson } from "./tmdb";
 import type { Card } from "./types";
 
@@ -12,9 +13,13 @@ export type SuspectMiss = {
   mode: "daily" | "vs";
   at: string;
   card: string;
+  kind: Card["kind"];
+  tmdbId: number;
   guess: string;
   closest: string;
   score: number;
+  /** Today's matcher already takes it (fixed since the guess was made). */
+  acceptedNow: boolean;
 };
 
 /** Share of words in common (0-1), or 0.8 when one key contains the other. */
@@ -68,7 +73,19 @@ export async function suspectMisses(days = 3): Promise<SuspectMiss[]> {
       const score = likeness(r.guess, real);
       if (score > best.score) best = { closest: real, score };
     }
-    if (best.score >= 0.5) found.push({ mode: r.mode, at: r.at, card: r.card.name, guess: r.guess, ...best });
+    if (best.score >= 0.5) {
+      const now = await matchGuess(r.card, r.guess, new Set()).catch(() => null);
+      found.push({
+        mode: r.mode,
+        at: r.at,
+        card: r.card.name,
+        kind: r.card.kind,
+        tmdbId: r.card.id,
+        guess: r.guess,
+        ...best,
+        acceptedNow: now?.outcome === "correct" || now?.outcome === "used",
+      });
+    }
   }
   return found.sort((a, b) => b.score - a.score || b.at.localeCompare(a.at)).slice(0, 60);
 }

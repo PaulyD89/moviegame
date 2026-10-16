@@ -240,6 +240,7 @@ function MissedAnswers() {
               <span className="text-zinc-400">closest real answer</span>
               <b className="text-amber-300">{r.closest}</b>
               <span className="text-xs text-zinc-500">{Math.round(r.score * 100)}% alike</span>
+              {r.acceptedNow && <span className="text-xs text-emerald-400">✓ counts now</span>}
             </li>
           ))}
         </ul>
