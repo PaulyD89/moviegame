@@ -9,6 +9,7 @@ import type { DailySync } from "@/lib/daily-play";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
 import { loadNickname } from "./challenge/nickname";
 import { VsButton } from "./challenge/VsButton";
+import { AdWelcome, fromAd } from "./AdWelcome";
 import { HelpButton, HowToPlay } from "./HowToPlay";
 import { StatsButton, StatsSheet } from "./StatsSheet";
 import { Logo } from "./Logo";
@@ -157,6 +158,8 @@ export function Game() {
 
   /** Send a guess (or a pass, with null) and show what the server decided. */
   function play(text: string | null) {
+    // How many visitors make a first move, ad visitors vs everyone else (measures the welcome card).
+    if (game!.events.length === 0) track("first_move", { ad: fromAd() });
     startTransition(async () => {
       const date = game!.date;
       let result: Awaited<ReturnType<typeof playToday>>;
@@ -214,6 +217,7 @@ export function Game() {
   return (
     <div className="flex w-full flex-col items-center gap-4">
       {showHelp && <HowToPlay onClose={closeHelp} />}
+      <AdWelcome kind={game.card.kind} fresh={game.events.length === 0} />
       {showStats && <StatsSheet todayNumber={game.number} onClose={() => setShowStats(false)} />}
       <div className="relative w-full">
         <Logo size="sm" />
