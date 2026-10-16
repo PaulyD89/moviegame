@@ -14,6 +14,7 @@ import {
   viewChallenge,
 } from "@/lib/challenge";
 import type { MoveResult } from "@/lib/challenge-types";
+import { nameTakenByOther } from "@/lib/names";
 import { playerId, UUID } from "@/lib/player";
 import { allow } from "@/lib/rate-limit";
 
@@ -26,6 +27,7 @@ export async function create(nickname: string) {
   if (!name) throw new Error("Nickname required");
   const pid = await playerId(true);
   if (!(await allow("create", pid))) return { ok: false as const, reason: "slow" };
+  if (await nameTakenByOther(name, pid)) return { ok: false as const, reason: "name-taken" };
   return { ok: true as const, id: await createChallenge(pid, name) };
 }
 
@@ -33,7 +35,9 @@ export async function join(id: string, nickname: string) {
   checkId(id);
   const name = cleanNickname(nickname);
   if (!name) return { ok: false as const, reason: "nickname" };
-  return joinChallenge(id, await playerId(true), name);
+  const pid = await playerId(true);
+  if (await nameTakenByOther(name, pid)) return { ok: false as const, reason: "name-taken" };
+  return joinChallenge(id, pid, name);
 }
 
 /** Late to a game that already started: get a seat in the next one. */
@@ -41,7 +45,9 @@ export async function waitlist(id: string, nickname: string) {
   checkId(id);
   const name = cleanNickname(nickname);
   if (!name) return { ok: false as const, reason: "nickname" };
-  return waitForNext(id, await playerId(true), name);
+  const pid = await playerId(true);
+  if (await nameTakenByOther(name, pid)) return { ok: false as const, reason: "name-taken" };
+  return waitForNext(id, pid, name);
 }
 
 export async function start(id: string) {

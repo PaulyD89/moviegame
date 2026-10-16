@@ -134,6 +134,7 @@ function Lobby({ state, reload }: { state: ChallengeView; reload: () => Promise<
             <span className="flex items-center gap-2 font-medium">
               <LiveDot live={p.live} />
               {p.nickname}
+              {p.claimed && <ClaimedCheck />}
               {p.isYou && <span className="text-xs text-zinc-500">(you)</span>}
             </span>
             {p.isHost ? (
@@ -224,9 +225,11 @@ function JoinForm({ id, reload }: { id: string; reload: () => Promise<void> }) {
         setError(
           result.reason === "full"
             ? "This game is full."
-            : result.reason === "started"
-              ? "This game already started."
-              : "Couldn't join. Try again.",
+            : result.reason === "name-taken"
+              ? "That name belongs to another player. Pick a different nickname."
+              : result.reason === "started"
+                ? "This game already started."
+                : "Couldn't join. Try again.",
         );
       }
       await reload();
@@ -540,6 +543,7 @@ function PlayerStrip({ players, turnSeat }: { players: ChallengePlayer[]; turnSe
           <div className="flex items-center gap-1.5 text-sm font-medium">
             <LiveDot live={p.live} />
             <span className="max-w-24 truncate">{p.isYou ? "You" : p.nickname}</span>
+            {p.claimed && <ClaimedCheck />}
           </div>
           <div className="mt-1 flex gap-0.5">
             {WORD.split("").map((ch, i) => (
@@ -665,7 +669,13 @@ function NextGamePanel({ state, reload }: { state: ChallengeView; reload: () => 
       saveNickname(nickname);
       const result = await waitlist(state.id, nickname);
       if (!result.ok) {
-        setError(result.reason === "full" ? "The next game is already full." : "Couldn't add you. Try again.");
+        setError(
+          result.reason === "full"
+            ? "The next game is already full."
+            : result.reason === "name-taken"
+              ? "That name belongs to another player. Pick a different nickname."
+              : "Couldn't add you. Try again.",
+        );
         return;
       }
       track("challenge_waitlisted");
@@ -746,6 +756,7 @@ function Finished({ state, reload }: { state: ChallengeView; reload: () => Promi
             <span className="font-medium">
               {i === 0 ? "🏆 " : `${i + 1}. `}
               {p.nickname}
+              {p.claimed && <ClaimedCheck />}
               {p.isYou && <span className="text-xs text-zinc-500"> (you)</span>}
             </span>
             <span className="font-display tracking-widest text-red-400">
@@ -879,5 +890,14 @@ function ShareChallenge({
     >
       {copied ? "Copied!" : youWon ? "📣 Share your win" : "📣 Share result"}
     </button>
+  );
+}
+
+/** Gold check for a name earned with a 7-day streak. */
+function ClaimedCheck() {
+  return (
+    <span className="text-amber-400" title="Claimed name: earned with a 7-day streak" aria-label="claimed name">
+      ✓
+    </span>
   );
 }

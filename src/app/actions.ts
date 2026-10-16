@@ -6,6 +6,7 @@ import { answerStats } from "@/lib/answer-stats";
 import { dailyRank } from "@/lib/daily-log";
 import { openDaily, playDaily, type DailyState } from "@/lib/daily-play";
 import { playerId } from "@/lib/player";
+import { CLAIM_STREAK, claimName, claimedName, playStreak } from "@/lib/names";
 import { globalRank } from "@/lib/rank";
 import { allow } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -88,22 +89,20 @@ export async function myBadgeFacts(): Promise<BadgeFacts | null> {
 /** Days in a row this player finished the daily (won or lost), and their best run. */
 export async function myStreak() {
   const pid = await playerId(false);
-  if (!pid) return null;
-  const { data, error } = await createAdminClient()
-    .from("daily_plays")
-    .select("puzzle_number")
-    .eq("player_id", pid)
-    .not("finished_at", "is", null)
-    .order("puzzle_number");
-  if (error) throw error;
-  const days = data.map((r) => r.puzzle_number as number);
-  let best = 0;
-  let run = 0;
-  days.forEach((n, i) => {
-    run = i > 0 && days[i - 1] === n - 1 ? run + 1 : 1;
-    best = Math.max(best, run);
-  });
-  const today = puzzleNumber(puzzleDate());
-  const last = days.at(-1) ?? null;
-  return { current: last !== null && last >= today - 1 ? run : 0, best, lastPlayed: last };
+  return pid ? playStreak(pid) : null;
+}
+
+/** This player's claimed name, and whether they've earned one (a 7-day streak). */
+export async function myName() {
+  const pid = await playerId(false);
+  if (!pid) return { name: null, eligible: false };
+  const [name, streak] = await Promise.all([claimedName(pid), playStreak(pid)]);
+  return { name, eligible: streak.best >= CLAIM_STREAK };
+}
+
+/** Claim a name earned with a 7-day streak. */
+export async function claimMyName(name: string) {
+  const pid = await playerId(true);
+  if (!(await allow("code", pid))) return { ok: false as const, reason: "slow" as const };
+  return claimName(pid, String(name ?? ""));
 }

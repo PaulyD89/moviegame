@@ -1,6 +1,7 @@
 import "server-only";
 import { after } from "next/server";
 import { matchGuess, startCard, usedKeysFor } from "./game";
+import { claimKey, claimsFor } from "./names";
 import { logError } from "./errors";
 import { notifyPlayers } from "./push";
 import { createAdminClient } from "./supabase/admin";
@@ -516,6 +517,7 @@ export async function viewChallenge(id: string, playerId: string | null): Promis
   }
   const nickname = (pid: string) =>
     state.players.find((p) => p.player_id === pid)?.nickname ?? "Someone";
+  const claims = await claimsFor(state.players.map((p) => p.player_id));
   return {
     id: c.id,
     status: c.status,
@@ -529,6 +531,7 @@ export async function viewChallenge(id: string, playerId: string | null): Promis
     players: state.players.map((p) => ({
       seat: p.seat,
       nickname: p.nickname,
+      claimed: claims.get(p.player_id) === claimKey(p.nickname),
       letters: p.letters,
       out: isOut(p),
       live: isLive(p, now),

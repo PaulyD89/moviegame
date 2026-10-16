@@ -35,7 +35,13 @@ export function NewChallenge() {
       try {
         saveNickname(nickname);
         const result = await create(nickname);
-        if (!result.ok) return setError("You've started a lot of games. Try again in a little while.");
+        if (!result.ok) {
+          return setError(
+            result.reason === "name-taken"
+              ? "That name belongs to another player. Pick a different nickname."
+              : "You've started a lot of games. Try again in a little while.",
+          );
+        }
         track("challenge_created");
         router.push(`/c/${result.id}`);
       } catch {

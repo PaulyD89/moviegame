@@ -11,6 +11,7 @@ import type { GlobalRank } from "@/lib/rank";
 import { LINKS_TO_WIN } from "@/lib/types";
 import { currentStreak, loadChallengeStats, saveBadges, type ChallengeStats, type Stats } from "./storage";
 import { useSyncedStats } from "./useStats";
+import { ClaimName } from "./ClaimName";
 
 /** All of this device's stats: daily Movie Chain and challenges. */
 export function StatsSheet({ todayNumber, todayLinks, onClose }: {
@@ -71,6 +72,7 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
 
       <BadgeRow earned={earnedBadges(daily, vs, facts, rank)} />
 
+      <ClaimName compact />
       <GlobalRankCard rank={rank} />
 
       <h3 className="mt-2 flex justify-center">

@@ -16,6 +16,7 @@ import { NotifyButton } from "./push/NotifyButton";
 import { ReminderNudge } from "./push/ReminderNudge";
 import { isPerfect, type SavedGame, type Stats } from "./storage";
 import { useSyncedStats } from "./useStats";
+import { ClaimName } from "./ClaimName";
 
 function formatTime(ms: number) {
   const s = Math.round(ms / 1000);
@@ -164,6 +165,8 @@ export function Results({ game }: { game: SavedGame }) {
           Play with friends
         </Link>
       </div>
+
+      <ClaimName />
 
       <ol className="-mx-4 flex w-[calc(100%+2rem)] snap-x gap-3 overflow-x-auto px-4 pb-2">
         {chain.map((node, i) => (

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { puzzleDate, puzzleNumber } from "@/lib/daily-clock";
 import type { DailyState } from "@/lib/daily-play";
+import { claimedName } from "@/lib/names";
 import { playerId } from "@/lib/player";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { WORD } from "@/lib/types";
@@ -44,6 +45,7 @@ export async function GET() {
   if (!data) return new Response("Not found", { status: 404 });
 
   const { puzzle_number: number, state: s, duration_ms } = data;
+  const claimed = await claimedName(pid);
   const won = s.status === "won";
   const start = s.links[0]?.card ?? s.card;
   const points = (won ? 10 + 2 * (WORD.length - s.letters) : 2) + s.fastLinks;
@@ -150,7 +152,7 @@ export async function GET() {
 
         <div style={{ display: "flex", fontSize: 46, marginTop: 40 }}>{facts.join("  ·  ")}</div>
         <div style={{ display: "flex", marginTop: "auto", fontSize: 34, color: AMBER }}>
-          Can you beat me? moviehorsegame.com
+          {claimed ? `${claimed} ✓ · Can you beat me? moviehorsegame.com` : "Can you beat me? moviehorsegame.com"}
         </div>
       </div>
     ),

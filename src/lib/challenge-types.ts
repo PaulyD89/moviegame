@@ -8,6 +8,8 @@ export const STALL_MS = 24 * 60 * 60 * 1000;
 export type ChallengePlayer = {
   seat: number;
   nickname: string;
+  /** Playing under the name they claimed with a 7-day streak (shown with a gold check). */
+  claimed: boolean;
   letters: number;
   out: boolean;
   live: boolean;
