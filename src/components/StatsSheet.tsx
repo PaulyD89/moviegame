@@ -40,7 +40,7 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
   const avg = daily.played ? ((daily.linksTotal ?? 0) / daily.played).toFixed(1) : "–";
 
   return (
-    <Modal labelledBy="stats-title" onClose={onClose}>
+    <Modal labelledBy="stats-title" onClose={onClose} tight>
       <h2 id="stats-title" className="flex justify-center">
         <Image
           src="/stats-header-640.webp"
@@ -48,46 +48,43 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
           width={640}
           height={320}
           priority
-          className="h-auto w-60 drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)]"
+          className="h-auto w-36 drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)]"
         />
       </h2>
 
       <GlobalRankCard rank={rank} />
 
-      <h3 className="mt-5 text-xs uppercase tracking-widest text-zinc-300">Daily Movie Chain</h3>
-      <div className="mt-2 grid grid-cols-4 gap-2 text-center">
+      <h3 className="mt-3 text-[11px] uppercase tracking-widest text-zinc-300">Daily Movie Chain</h3>
+      <div className="mt-1.5 grid grid-cols-4 gap-1.5 text-center">
         <Stat label="Played" value={daily.played} />
         <Stat label="Win %" value={pct(daily.won, daily.played)} />
         <Stat label="Streak" value={currentStreak(daily, todayNumber)} />
         <Stat label="Best" value={daily.maxStreak} />
       </div>
-      <p className="mt-2 text-center text-sm text-zinc-300">
-        Average chain: <b className="text-white">{avg}</b> links
-      </p>
-      <p className="mt-1 text-center text-sm text-zinc-300">
-        🏁 Fastest perfect game:{" "}
+      <p className="mt-1.5 text-center text-xs text-zinc-300">
+        Average chain <b className="text-white">{avg}</b> links · 🏁 Fastest perfect{" "}
         <b className="text-white">{daily.bestPerfectMs ? formatTime(daily.bestPerfectMs) : "none yet"}</b>
       </p>
 
       <LinksChart dist={daily.dist} highlight={todayLinks} />
 
-      <h3 className="mt-6 text-xs uppercase tracking-widest text-zinc-300">Challenges</h3>
-      <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+      <h3 className="mt-3 text-[11px] uppercase tracking-widest text-zinc-300">Challenges</h3>
+      <div className="mt-1.5 grid grid-cols-3 gap-1.5 text-center">
         <Stat label="Played" value={vs.played} />
         <Stat label="Wins" value={vs.won} />
         <Stat label="Win %" value={pct(vs.won, vs.played)} />
       </div>
 
-      <p className="mt-5 text-center text-xs text-zinc-400">
-        Stats are saved in this browser. Switching phones or browsers?
+      <p className="mt-2 text-center text-xs text-zinc-400">
+        Stats are saved in this browser.{" "}
+        <ProgressLink className="inline-flex min-h-9 items-center font-semibold text-amber-400 underline underline-offset-2">
+          📲 Save or restore
+        </ProgressLink>
       </p>
-      <ProgressLink className="mx-auto mt-1 flex min-h-11 items-center px-3 text-sm font-semibold text-amber-400 underline underline-offset-2">
-        📲 Save or restore your progress
-      </ProgressLink>
       <button
         ref={closeRef}
         onClick={onClose}
-        className="mt-4 min-h-12 w-full rounded-xl bg-amber-400 text-lg font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-[0.98]"
+        className="mt-1 min-h-11 w-full rounded-xl bg-amber-400 text-lg font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-[0.98]"
       >
         Close
       </button>
@@ -99,12 +96,22 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
 function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
   const [showHow, setShowHow] = useState(false);
   return (
-    <section className="mt-4 rounded-2xl border border-amber-400/50 p-4 text-center">
-      <h3 className="text-xs uppercase tracking-widest text-amber-400">Rank</h3>
+    <section className="mt-2 rounded-2xl border border-amber-400/50 px-3 pt-1 pb-3 text-center">
+      <div className="flex items-center justify-between">
+        <h3 className="text-[11px] uppercase tracking-widest text-amber-400">Global rank</h3>
+        <button
+          type="button"
+          onClick={() => setShowHow(!showHow)}
+          aria-expanded={showHow}
+          className="-mr-2 min-h-9 px-2 text-[11px] text-zinc-400 underline"
+        >
+          How points work
+        </button>
+      </div>
       {rank === undefined ? (
-        <p className="mt-2 h-14 text-zinc-400">Loading…</p>
+        <p className="h-16 text-sm text-zinc-400">Loading…</p>
       ) : rank?.allTime.rank ? (
-        <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           <RankTile
             label={new Date().toLocaleString("en-US", { month: "long", timeZone: "America/New_York" })}
             standing={rank.month}
@@ -112,20 +119,12 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
           <RankTile label="All time" standing={rank.allTime} />
         </div>
       ) : (
-        <p className="mt-2 text-sm text-zinc-300">
+        <p className="text-sm text-zinc-300">
           {rank === null ? "Couldn't load your rank right now." : "Finish a daily Movie Chain to get ranked."}
         </p>
       )}
-      <button
-        type="button"
-        onClick={() => setShowHow(!showHow)}
-        aria-expanded={showHow}
-        className="mt-2 min-h-11 px-3 text-xs text-zinc-400 underline"
-      >
-        How points work
-      </button>
       {showHow && (
-        <div className="mt-1 text-left">
+        <div className="mt-2 text-left">
           <ul className="space-y-1 text-sm text-zinc-300">
             <li>🏆 Daily win: <b className="text-white">10 pts</b> + 2 for each letter you didn&apos;t get</li>
             <li>🎬 Daily finished without winning: <b className="text-white">2 pts</b></li>
@@ -144,13 +143,15 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
 /** One rank: the place, then points. A month with no games yet shows a dash. */
 function RankTile({ label, standing }: { label: string; standing: GlobalRank["month"] }) {
   return (
-    <div className="rounded-xl bg-white/5 px-2 py-3">
-      <div className="text-xs uppercase tracking-wider text-zinc-300">{label}</div>
-      <div className="mt-1 font-display text-4xl tracking-wide text-white">
-        {standing.rank ? `#${standing.rank.toLocaleString()}` : "–"}
-      </div>
-      <div className="text-xs text-zinc-300">
-        <b className="text-white">{standing.points.toLocaleString()}</b> points
+    <div className="rounded-xl bg-white/5 px-2 py-1.5">
+      <div className="text-[11px] uppercase tracking-wider text-zinc-300">{label}</div>
+      <div className="flex items-baseline justify-center gap-2">
+        <span className="font-display text-2xl tracking-wide text-white">
+          {standing.rank ? `#${standing.rank.toLocaleString()}` : "–"}
+        </span>
+        <span className="text-xs text-zinc-300">
+          <b className="text-white">{standing.points.toLocaleString()}</b> pts
+        </span>
       </div>
     </div>
   );
@@ -163,9 +164,9 @@ function formatTime(ms: number) {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg bg-white/5 py-2">
-      <div className="text-2xl font-bold text-white">{value}</div>
-      <div className="text-xs text-zinc-300">{label}</div>
+    <div className="rounded-lg bg-white/5 py-1.5">
+      <div className="text-xl leading-tight font-bold text-white">{value}</div>
+      <div className="text-[11px] text-zinc-300">{label}</div>
     </div>
   );
 }
@@ -176,14 +177,14 @@ function LinksChart({ dist, highlight }: { dist?: number[]; highlight?: number }
   const max = Math.max(...counts);
   const [active, setActive] = useState<number | null>(null);
   if (max === 0) {
-    return <p className="mt-4 text-center text-sm text-zinc-400">Finish a daily chain to see your chart.</p>;
+    return <p className="mt-2 text-center text-xs text-zinc-400">Finish a daily chain to see your chart.</p>;
   }
   const labelled = (i: number) => i === highlight || i === active || (counts[i] === max && highlight === undefined);
 
   return (
-    <figure className="mt-4">
-      <figcaption className="mb-2 text-xs text-zinc-300">Links made per game</figcaption>
-      <div className="flex h-28 items-end gap-0.5" role="list" aria-label="Links made per daily game">
+    <figure className="mt-2">
+      <figcaption className="mb-1 text-[11px] text-zinc-300">Links made per game</figcaption>
+      <div className="flex h-12 items-end gap-0.5" role="list" aria-label="Links made per daily game">
         {counts.map((n, i) => (
           <button
             key={i}

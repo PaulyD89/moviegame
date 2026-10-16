@@ -10,10 +10,13 @@ export function Modal({
   labelledBy,
   onClose,
   children,
+  tight = false,
 }: {
   labelledBy: string;
   onClose: () => void;
   children: React.ReactNode;
+  /** Less inner padding, for windows that need to fit a phone screen without scrolling. */
+  tight?: boolean;
 }) {
   useEffect(() => {
     const html = document.documentElement;
@@ -34,7 +37,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className="relative max-h-full w-full max-w-md animate-modal overflow-y-auto overscroll-contain rounded-3xl border border-amber-400/40 bg-gradient-to-b from-zinc-900 to-[#0b0908] px-6 pt-5 pb-6 shadow-[0_20px_60px_rgb(0_0_0/0.6)]"
+        className={`relative max-h-full w-full max-w-md animate-modal overflow-y-auto overscroll-contain rounded-3xl border border-amber-400/40 bg-gradient-to-b from-zinc-900 to-[#0b0908] ${tight ? "px-5 pt-3 pb-4" : "px-6 pt-5 pb-6"} shadow-[0_20px_60px_rgb(0_0_0/0.6)]`}
       >
         {children}
       </div>
