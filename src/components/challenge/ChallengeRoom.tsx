@@ -388,7 +388,14 @@ function TurnForm({ state, reload }: { state: ChallengeView; reload: () => Promi
     if (isPending) return;
     setUsed(null);
     startTransition(async () => {
-      const result = await move(state.id, state.version, text);
+      let result: Awaited<ReturnType<typeof move>>;
+      try {
+        result = await move(state.id, state.version, text);
+      } catch {
+        // A server hiccup: nothing was saved, so the same move can simply be tried again.
+        setFeedback("Something went wrong. Try again.");
+        return;
+      }
       if (!result.ok) {
         if (result.reason === "used") {
           setGuess("");

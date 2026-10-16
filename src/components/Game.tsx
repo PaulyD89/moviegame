@@ -158,7 +158,13 @@ export function Game() {
   function play(text: string | null) {
     startTransition(async () => {
       const date = game!.date;
-      const result = await playToday(date, text);
+      let result: Awaited<ReturnType<typeof playToday>>;
+      try {
+        result = await playToday(date, text);
+      } catch {
+        // A server hiccup: nothing was saved, so the same move can simply be tried again.
+        return setFeedback({ tone: "info", text: "Something went wrong. Try again." });
+      }
       if (result.outcome === "slow") return setFeedback({ tone: "info", text: SLOW });
       if (result.outcome === "used") {
         setGuess("");

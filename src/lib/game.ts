@@ -120,7 +120,8 @@ async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string)
       c.poster_path &&
       !used.has(cardKey({ kind: "movie", id: c.id })) &&
       !NOT_A_ROLE.test(c.character ?? "") &&
-      !c.genre_ids.some((g) => SKIP_GENRES.has(g)),
+      // A few TMDB credits come without genres (one of Michael Keaton's did, and crashed his answers).
+      !(c.genre_ids ?? []).some((g) => SKIP_GENRES.has(g)),
   );
   if (!used.has(SIXTIES_USED) && roll(`${seed}:60s`) < SIXTIES_SHARE) {
     const sixties = eligible
@@ -375,7 +376,7 @@ export async function matchGuess(card: Card, guess: string, used: Set<string>): 
     const alts = await Promise.all(top.map((c) => getAltTitles(c.id).catch(() => [] as string[])));
     const strip = (s: string) => s.replace(/^\s*(the|a|an)\s+/i, "");
     const known = top.filter((c, i) =>
-      alts[i].some(
+      (alts[i] ?? []).some(
         (t) => closeness([key, titleKey(guess)], [nameKey(t), titleKey(t)]) < Infinity || soundsLike(strip(guess), strip(t)),
       ),
     );
