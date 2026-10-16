@@ -203,6 +203,7 @@ function BadgeRow({ earned }: { earned: Set<BadgeId> }) {
                   {earned.has(badge.id) && " ✓"}
                 </div>
                 <div className="text-xs text-zinc-300">{badge.how}</div>
+                {"reward" in badge && <div className="text-xs font-semibold text-amber-400">{badge.reward}</div>}
                 <div className="text-[11px] text-zinc-400">{earned.has(badge.id) ? "Earned" : "Not earned yet"}</div>
               </div>
             </div>
