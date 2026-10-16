@@ -1,11 +1,14 @@
-/** Achievement badges on the stats screen, in display order. Art lives in /public/badges. */
+/**
+ * Achievement badges on the stats screen, in display order. Art lives in /public/badges.
+ * Keep `how` short: name + how must fit one line under the badge row on a phone.
+ */
 export const BADGES = [
-  { id: "opening-night", name: "Opening Night", how: "Win your first daily Movie Chain." },
-  { id: "one-take", name: "One Take", how: "Win a daily without getting a single letter." },
-  { id: "franchise", name: "Franchise", how: "Win the daily 7 days in a row." },
-  { id: "lightning-round", name: "Lightning Round", how: "Answer all 10 links of a daily within 20 seconds each." },
-  { id: "top-billing", name: "Top Billing", how: "Reach the top 10 in a month's global rank." },
-  { id: "showdown", name: "Showdown", how: "Win your first VS game." },
+  { id: "opening-night", name: "Opening Night", how: "Win your first daily" },
+  { id: "one-take", name: "One Take", how: "Win a daily with no letters" },
+  { id: "franchise", name: "Franchise", how: "Win the daily 7 days in a row" },
+  { id: "lightning-round", name: "Lightning Round", how: "All 10 links under 20s each" },
+  { id: "top-billing", name: "Top Billing", how: "Make the top 10 for a month" },
+  { id: "showdown", name: "Showdown", how: "Win your first VS game" },
 ] as const;
 
 export type BadgeId = (typeof BADGES)[number]["id"];

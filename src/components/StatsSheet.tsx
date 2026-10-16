@@ -183,9 +183,12 @@ function BadgeRow({ earned }: { earned: Set<BadgeId> }) {
       >
         <div className="overflow-hidden">
           {badge && (
-            <p className="pt-1.5 text-center text-xs text-zinc-300">
-              <b className={earned.has(badge.id) ? "text-amber-400" : "text-white"}>{badge.name}</b>
-              {earned.has(badge.id) ? " · Earned ✓ " : " · "}
+            <p className="truncate pt-1.5 text-center text-xs text-zinc-300">
+              <b className={earned.has(badge.id) ? "text-amber-400" : "text-white"}>
+                {badge.name}
+                {earned.has(badge.id) && " ✓"}
+              </b>
+              {" · "}
               {badge.how}
             </p>
           )}
