@@ -319,7 +319,12 @@ function HowYouCompare({ number }: { number: number }) {
       )}
       <ul className="space-y-2.5">
         {rows.map((r) => (
-          <li key={`${r.prompt.kind}-${r.prompt.id}`}>
+          <li key={`${r.prompt.kind}-${r.prompt.id}`} className="flex items-center gap-3">
+            {/* Your answer's photo or poster, like the chain above. */}
+            <div className="relative aspect-[2/3] w-10 shrink-0 overflow-hidden rounded-md bg-zinc-800 ring-1 ring-white/10">
+              {r.answer.image && <Image src={r.answer.image} alt="" fill sizes="40px" className="object-cover" />}
+            </div>
+            <div className="min-w-0">
             <div className="truncate text-[15px] text-zinc-300">
               {r.prompt.name} → <b className="text-white">{r.answer.name}</b>
             </div>
@@ -331,6 +336,7 @@ function HowYouCompare({ number }: { number: number }) {
                   <span className="font-semibold text-amber-400"><span className="mr-1">👑</span>Most popular answer</span> · {r.pct}% said it too
                 </>
               )}
+            </div>
             </div>
           </li>
         ))}
