@@ -54,6 +54,7 @@ export function YourGames() {
 /** Right-hand label; "hot" rows need you (your turn, or a result you haven't seen). */
 function status(g: ListedGame) {
   if (g.status === "lobby") return { label: g.others.length ? "In lobby" : "Invite friends", hot: false };
+  if (g.status === "finished" && !g.winner) return { label: "Closed · nobody played", hot: false };
   if (g.status === "finished")
     return g.youWon
       ? { label: g.seen ? "🏆 You won · Share" : "🏆 You won! See result", hot: !g.seen }

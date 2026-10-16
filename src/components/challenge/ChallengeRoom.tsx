@@ -727,15 +727,17 @@ function Finished({ state, reload }: { state: ChallengeView; reload: () => Promi
   const router = useRouter();
   const me = state.players.find((p) => p.isYou);
   const youWon = !!me && state.winnerSeat === me.seat;
+  // Closed by the nightly sweep after 3 days with nobody opening it.
+  const abandoned = state.winnerSeat === null;
   const [isPending, startTransition] = useTransition();
 
-  // Count this game in the device's challenge stats (once per game).
+  // Count this game in the device's challenge stats (once per game; abandoned games don't count).
   useEffect(() => {
     if (!me) return;
-    recordChallenge(state.id, youWon);
+    if (!abandoned) recordChallenge(state.id, youWon);
     markResultSeen(state.id);
     backupAfterGame();
-  }, [me, state.id, youWon]);
+  }, [me, state.id, youWon, abandoned]);
   const standings = finalStandings(state);
   const chain = state.moves.filter((m) => m.outcome === "correct" && m.answer);
 
@@ -743,10 +745,14 @@ function Finished({ state, reload }: { state: ChallengeView; reload: () => Promi
     <div className="flex w-full flex-col items-center gap-5">
       <div className="text-center">
         <h2 className="font-display text-5xl tracking-wide text-amber-400">
-          {youWon ? "YOU WIN!" : `${state.winner ?? "Nobody"} WINS`}
+          {abandoned ? "GAME CLOSED" : youWon ? "YOU WIN!" : `${state.winner ?? "Nobody"} WINS`}
         </h2>
         <p className="mt-1 text-zinc-300">
-          {youWon ? "Last one standing. Everyone else spelled it." : "Last one standing takes it."}
+          {abandoned
+            ? "Nobody played for 3 days, so we closed it. No win or loss counted."
+            : youWon
+              ? "Last one standing. Everyone else spelled it."
+              : "Last one standing takes it."}
         </p>
       </div>
 
@@ -754,7 +760,7 @@ function Finished({ state, reload }: { state: ChallengeView; reload: () => Promi
         {standings.map((p, i) => (
           <li key={p.seat} className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
             <span className="font-medium">
-              {i === 0 ? "🏆 " : `${i + 1}. `}
+              {i === 0 && !abandoned ? "🏆 " : `${i + 1}. `}
               {p.nickname}
               {p.claimed && <ClaimedCheck />}
               {p.isYou && <span className="text-xs text-zinc-500"> (you)</span>}
@@ -786,7 +792,7 @@ function Finished({ state, reload }: { state: ChallengeView; reload: () => Promi
         </div>
       )}
 
-      {me && <ShareChallenge state={state} standings={standings} links={chain.length} youWon={youWon} />}
+      {me && !abandoned && <ShareChallenge state={state} standings={standings} links={chain.length} youWon={youWon} />}
       {me && !state.rematchId && <WaitingFriends names={state.waiting} finished />}
       {!me && <NextGamePanel state={state} reload={reload} />}
       {me && state.rematchId ? (

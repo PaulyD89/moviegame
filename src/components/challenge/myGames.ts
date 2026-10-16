@@ -48,7 +48,8 @@ export function markResultSeen(id: string) {
 
 /** Count finished games in your stats even if you never opened the final screen (once per game). */
 export function recordFinished(games: ChallengeSummary[]) {
-  for (const g of games) if (g.status === "finished") recordChallenge(g.id, g.youWon);
+  // A game closed as abandoned (no winner) counts as neither a win nor a loss.
+  for (const g of games) if (g.status === "finished" && g.winner) recordChallenge(g.id, g.youWon);
 }
 
 export type ListedGame = ChallengeSummary & { seen: boolean };

@@ -4,6 +4,8 @@ export const MAX_PLAYERS = 6;
 export const SHOT_CLOCK_MS = 30_000;
 /** A take-your-time turn nobody takes for this long is skipped with a letter. */
 export const STALL_MS = 24 * 60 * 60 * 1000;
+/** A game nobody has opened for this long is closed as abandoned: no winner, no win or loss. */
+export const ABANDON_MS = 3 * 24 * 60 * 60 * 1000;
 
 export type ChallengePlayer = {
   seat: number;

@@ -8,7 +8,7 @@ import { createAdminClient } from "./supabase/admin";
 import {
   MAX_PLAYERS,
   SHOT_CLOCK_MS,
-  STALL_MS,
+  ABANDON_MS, STALL_MS,
   type ChallengeView,
   type MoveOutcome,
   type MoveResult,
@@ -432,6 +432,7 @@ async function enforceClock(c: ChallengeRow, players: PlayerRow[], now: number) 
 
 /** Skip every turn that has sat for a day, so the next player gets pinged. */
 export async function sweepStalled() {
+  await closeAbandoned();
   const { data } = await db()
     .from("challenges")
     .select("id")
@@ -445,6 +446,30 @@ export async function sweepStalled() {
     if (state && (await enforceClock(state.challenge, state.players, Date.now()))) skipped++;
   }
   return skipped;
+}
+
+/**
+ * Close games nobody has opened in ABANDON_MS: finished with no winner, so nobody gets a win or
+ * a loss, and no notifications. Otherwise the daily skips would drag a ghost game on for a week.
+ */
+async function closeAbandoned() {
+  const cutoff = Date.now() - ABANDON_MS;
+  const { data } = await db()
+    .from("challenges")
+    .select("id, challenge_players(last_seen)")
+    .eq("status", "playing")
+    .lt("updated_at", new Date(Date.now() - STALL_MS).toISOString())
+    .limit(200);
+  const stale = ((data ?? []) as { id: string; challenge_players: { last_seen: string }[] }[]).filter((c) =>
+    c.challenge_players.every((p) => Date.parse(p.last_seen) < cutoff),
+  );
+  for (const { id } of stale) {
+    const state = await load(id);
+    if (state?.challenge.status === "playing") {
+      await commit(state.challenge, { status: "finished", winner_id: null, turn_seat: null, turn_deadline: null });
+    }
+  }
+  return stale.length;
 }
 
 /** The host can remove someone from the lobby (say, a friend who never showed up). */

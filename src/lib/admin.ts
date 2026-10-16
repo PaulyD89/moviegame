@@ -106,7 +106,7 @@ export async function getAdminStats(): Promise<AdminStats> {
       .in("status", ["lobby", "playing"])
       .gte("updated_at", since)
       .order("updated_at", { ascending: false })
-      .limit(25),
+      .limit(50),
     supabase
       .from("app_errors")
       .select("id, at, source, path, message", { count: "exact" })
@@ -152,7 +152,11 @@ export async function getAdminStats(): Promise<AdminStats> {
       dismissedThisWeek: dismissedErrors.count ?? 0,
     },
     puzzleNumber: today,
-    activeGames: ((games.data ?? []) as GameRow[]).map((g) => ({
+    // Active = someone opened it in the last day; the overnight skips alone don't count.
+    activeGames: ((games.data ?? []) as GameRow[])
+      .filter((g) => g.challenge_players.some((p) => Date.parse(p.last_seen) >= Date.parse(since)))
+      .slice(0, 25)
+      .map((g) => ({
       code: g.code,
       status: g.status,
       updatedAt: g.updated_at,
