@@ -136,7 +136,7 @@ export function Results({ game }: { game: SavedGame }) {
     <div className="flex w-full flex-col items-center gap-5">
       <Logo size="md" />
       <h2 className="-mt-2 text-center font-display text-[2.55rem] leading-tight tracking-wide text-amber-400">
-        {won ? (game.letters === 0 ? "Perfect game!" : "That's a wrap!") : "M-O-V-I-E"}
+        {won ? (game.letters === 0 ? "Perfect game!" : "That's a wrap!") : game.links.length >= 8 ? "So close!" : "Cut!"}
       </h2>
 
       <Letters count={game.letters} />

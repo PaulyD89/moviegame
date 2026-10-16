@@ -79,7 +79,7 @@ export async function GET() {
           {`MOVIE CHAIN #${number}`}
         </div>
         <div style={{ display: "flex", fontFamily: "Anton", fontSize: 92, lineHeight: 1.1, marginTop: 4 }}>
-          {won ? (s.letters === 0 ? "PERFECT GAME!" : "THAT'S A WRAP!") : "M-O-V-I-E"}
+          {won ? (s.letters === 0 ? "PERFECT GAME!" : "THAT'S A WRAP!") : s.links.length >= 8 ? "SO CLOSE!" : "CUT!"}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 40, marginTop: 36 }}>
