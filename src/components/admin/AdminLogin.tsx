@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { login } from "@/app/admin/actions";
@@ -21,7 +22,17 @@ export function AdminLogin() {
       }}
       className="mx-auto mt-16 flex max-w-sm flex-col gap-3"
     >
-      <h1 className="text-center font-display text-3xl tracking-wide text-amber-400">MOVIE HORSE ADMIN</h1>
+      <h1 className="flex flex-col items-center gap-1">
+        <Image
+          src="/logo-480.webp"
+          alt="Movie Horse"
+          width={480}
+          height={320}
+          priority
+          className="h-auto w-44 drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)]"
+        />
+        <span className="text-xl font-light tracking-wide text-amber-400">Admin Dashboard</span>
+      </h1>
       <input
         type="password"
         value={password}
