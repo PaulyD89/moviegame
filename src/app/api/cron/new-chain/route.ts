@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import { puzzleDate } from "@/lib/daily-clock";
 import { sweepStalled } from "@/lib/challenge";
 import { dailyStart } from "@/lib/game";
+import { postDailyToInstagram } from "@/lib/instagram";
 import { notifyDailySubscribers } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -30,6 +31,9 @@ export async function GET(request: Request) {
   // Choose and save tonight's puzzle now, so the first player doesn't wait for it.
   const { number, card } = await dailyStart(puzzleDate());
 
+  // Announce it on Instagram (once per puzzle; does nothing until the account is connected).
+  const instagram = await postDailyToInstagram(number, card);
+
   // Mark it reminded first, so a retry or the second cron can't send twice.
   const { data } = await createAdminClient()
     .from("daily_puzzles")
@@ -37,7 +41,7 @@ export async function GET(request: Request) {
     .eq("number", number)
     .is("reminded_at", null)
     .select("number");
-  if (!data?.length) return Response.json({ number, skipped: "Already reminded", stalledTurnsSkipped: skipped });
+  if (!data?.length) return Response.json({ number, instagram, skipped: "Already reminded", stalledTurnsSkipped: skipped });
 
   const sent = await notifyDailySubscribers({
     title: "Movie Horse",
@@ -45,5 +49,5 @@ export async function GET(request: Request) {
     url: "/",
     tag: "daily",
   });
-  return Response.json({ number, sent, stalledTurnsSkipped: skipped });
+  return Response.json({ number, sent, instagram, stalledTurnsSkipped: skipped });
 }

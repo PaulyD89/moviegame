@@ -232,6 +232,17 @@ const isHeadliner = (m: StarterMovie) => m.rank < (m.decade === 1970 ? 20 : 40);
  * The puzzle for a date (YYYY-MM-DD, Eastern). Each day's start is chosen once and saved,
  * and never reuses a movie or lead actor from an earlier day.
  */
+/** A saved puzzle's opening card, or null if that day hasn't been chosen yet (never creates one). */
+export async function savedOpener(number: number): Promise<Card | null> {
+  const { data } = await createAdminClient()
+    .from("daily_puzzles")
+    .select("*")
+    .eq("number", number)
+    .maybeSingle<PuzzleRow>();
+  if (!data) return null;
+  return data.kind === "person" ? personCard(await getPerson(data.tmdb_id)) : movieCard(await getMovie(data.tmdb_id));
+}
+
 export async function dailyStart(dateStr: string): Promise<{ number: number; card: Card }> {
   const number = puzzleNumber(dateStr);
   const supabase = createAdminClient();
