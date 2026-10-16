@@ -25,8 +25,9 @@ const logo = readFile(join(process.cwd(), "assets/logo-share.png")).then(
 
 const ask = (card: Card) => (card.kind === "movie" ? "Name an actor in it" : "Name a movie they were in");
 
-/** The post's picture as a JPEG (Instagram doesn't take PNGs). */
-export async function dailyCardJpeg(number: number, card: Card) {
+/** The post's picture as a JPEG (Instagram doesn't take PNGs): 4:5 post or 9:16 story. */
+export async function dailyCardJpeg(number: number, card: Card, format: "post" | "story" = "post") {
+  const story = format === "story";
   const png = new ImageResponse(
     (
       <div
@@ -36,7 +37,8 @@ export async function dailyCardJpeg(number: number, card: Card) {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          padding: "60px 64px",
+          justifyContent: story ? "center" : "flex-start",
+          padding: story ? "120px 64px" : "60px 64px",
           color: "white",
           // Movie days gold on black, actor days deep burgundy, so the grid alternates.
           background:
@@ -46,7 +48,7 @@ export async function dailyCardJpeg(number: number, card: Card) {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img> */}
-        <img src={await logo} width={330} height={220} alt="" />
+        <img src={await logo} width={story ? 390 : 330} height={story ? 260 : 220} alt="" />
         <div style={{ display: "flex", fontFamily: "Anton", fontSize: 50, color: AMBER, letterSpacing: 4, marginTop: 10 }}>
           {`MOVIE CHAIN #${number} IS LIVE`}
         </div>
@@ -54,13 +56,13 @@ export async function dailyCardJpeg(number: number, card: Card) {
           // eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img>
           <img
             src={card.image}
-            width={400}
-            height={600}
+            width={story ? 520 : 400}
+            height={story ? 780 : 600}
             alt=""
-            style={{ marginTop: 36, borderRadius: 22, border: "3px solid rgba(251,191,36,0.45)", objectFit: "cover" }}
+            style={{ marginTop: story ? 50 : 36, borderRadius: 22, border: "3px solid rgba(251,191,36,0.45)", objectFit: "cover" }}
           />
         ) : (
-          <div style={{ display: "flex", marginTop: 36, width: 400, height: 600, borderRadius: 22, background: "#27272a" }} />
+          <div style={{ display: "flex", marginTop: 36, width: story ? 520 : 400, height: story ? 780 : 600, borderRadius: 22, background: "#27272a" }} />
         )}
         <div style={{ display: "flex", fontSize: 30, color: "#d4d4d8", marginTop: 30 }}>Today starts with</div>
         <div style={{ display: "flex", fontSize: 54, fontWeight: 700, marginTop: 4, textAlign: "center" }}>
@@ -69,12 +71,12 @@ export async function dailyCardJpeg(number: number, card: Card) {
         <div style={{ display: "flex", fontFamily: "Anton", fontSize: 40, color: AMBER, marginTop: 18, letterSpacing: 2 }}>
           {`${ask(card).toUpperCase()} · ${LINKS_TO_WIN} LINKS TO WIN`}
         </div>
-        <div style={{ display: "flex", marginTop: "auto", fontSize: 34, color: "#e4e4e7" }}>
+        <div style={{ display: "flex", marginTop: story ? 70 : "auto", fontSize: 34, color: "#e4e4e7" }}>
           {"Don't spell M-O-V-I-E  ·  moviehorsegame.com"}
         </div>
       </div>
     ),
-    { width: 1080, height: 1350, fonts: [{ name: "Anton", data: await anton, weight: 400, style: "normal" }] },
+    { width: 1080, height: story ? 1920 : 1350, fonts: [{ name: "Anton", data: await anton, weight: 400, style: "normal" }] },
   );
   return sharp(Buffer.from(await png.arrayBuffer())).jpeg({ quality: 90 }).toBuffer();
 }
@@ -212,8 +214,23 @@ export async function postDailyToInstagram(number: number, card: Card) {
     });
     await untilReady(container, token);
     const post = await graph(`${userId}/media_publish`, { creation_id: container, access_token: token });
+    // The same card as a story; if Instagram refuses it, the feed post still stands.
+    const story = await (async () => {
+      try {
+        const s = await graph(`${userId}/media`, {
+          image_url: `${SITE}/api/instagram/card/${number}?format=story`,
+          media_type: "STORIES",
+          access_token: token,
+        });
+        await untilReady(s, token);
+        return await graph(`${userId}/media_publish`, { creation_id: s, access_token: token });
+      } catch (e) {
+        await logError("cron", `Instagram story for #${number} failed: ${e instanceof Error ? e.message : e}`, "/api/cron/instagram");
+        return "failed";
+      }
+    })();
     await refreshToken(token).catch((e) => logError("cron", String(e), "/api/cron/new-chain"));
-    return post;
+    return { post, story };
   } catch (e) {
     await logError("cron", `Instagram post for #${number} failed: ${e instanceof Error ? e.message : e}`, "/api/cron/new-chain");
     return "failed";
