@@ -80,7 +80,7 @@ export function NewChallenge() {
       </ol>
 
       <form onSubmit={onSubmit} className="flex w-full flex-col gap-3">
-        <label htmlFor="nickname" className="text-sm uppercase tracking-wider text-zinc-400">
+        <label htmlFor="nickname" className="text-sm uppercase tracking-wider text-zinc-300">
           Your nickname
         </label>
         <input
@@ -89,7 +89,7 @@ export function NewChallenge() {
           maxLength={20}
           autoComplete="nickname"
           placeholder="e.g. Maverick"
-          className="w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3.5 text-lg outline-none placeholder:text-zinc-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
+          className="w-full rounded-xl border border-amber-400/40 bg-black/40 px-4 py-3.5 text-lg outline-none placeholder:text-zinc-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
         />
         <button
           type="submit"

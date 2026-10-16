@@ -40,7 +40,7 @@ export function JoinWithCode() {
           autoCapitalize="characters"
           spellCheck={false}
           enterKeyHint="go"
-          className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/40 px-4 py-3.5 text-center font-display text-2xl tracking-[0.3em] outline-none placeholder:text-zinc-700 focus:border-amber-400"
+          className="min-w-0 flex-1 rounded-xl border border-amber-400/40 bg-black/40 px-4 py-3.5 text-center font-display text-2xl tracking-[0.3em] outline-none placeholder:text-zinc-700 focus:border-amber-400"
         />
         <button
           type="submit"

@@ -241,7 +241,7 @@ function JoinForm({ id, reload }: { id: string; reload: () => Promise<void> }) {
         autoComplete="nickname"
         placeholder="Your nickname"
         aria-label="Your nickname"
-        className="w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3.5 text-lg outline-none placeholder:text-zinc-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
+        className="w-full rounded-xl border border-amber-400/40 bg-black/40 px-4 py-3.5 text-lg outline-none placeholder:text-zinc-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
       />
       <button
         type="submit"
@@ -674,7 +674,7 @@ function NextGamePanel({ state, reload }: { state: ChallengeView; reload: () => 
         autoComplete="nickname"
         placeholder="Your nickname"
         aria-label="Your nickname"
-        className="w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3.5 text-lg outline-none placeholder:text-zinc-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
+        className="w-full rounded-xl border border-amber-400/40 bg-black/40 px-4 py-3.5 text-lg outline-none placeholder:text-zinc-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
       />
       <button
         type="submit"
