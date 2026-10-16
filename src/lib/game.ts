@@ -1,6 +1,6 @@
 import "server-only";
 import { puzzleDate, puzzleNumber } from "./daily-clock";
-import { closeness, nameKey, nicknameKey, shortTitleKey, soundsLike, titleKey } from "./normalize";
+import { closeness, nameKey, nicknameKey, shortTitleKey, soundsLike, wordTypos, titleKey } from "./normalize";
 import {
   getAltTitles,
   getMovie,
@@ -351,6 +351,11 @@ export async function matchGuess(card: Card, guess: string, used: Set<string>): 
       if (new Set(heard.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: heard });
     }
     if (items.length === 0) {
+      // A few typos in each word ("Kiera Knoghtly"), if it points to exactly one person.
+      const typed = ranked(cast, (c) => wordTypos(guess, c.name));
+      if (new Set(typed.items.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: typed.items });
+    }
+    if (items.length === 0) {
       // Another name they've been credited under (the main cast only, to keep lookups cheap).
       const top = cast.slice(0, 15);
       const people = await Promise.all(top.map((c) => getPerson(c.id).catch(() => null)));
@@ -390,6 +395,14 @@ export async function matchGuess(card: Card, guess: string, used: Set<string>): 
       (c) => soundsLike(strip(guess), strip(c.title)) || soundsLike(strip(guess), strip(c.title.split(":")[0])),
     );
     if (new Set(heard.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: heard });
+  }
+  if (items.length === 0) {
+    // A few typos in each word of the title, if it points to exactly one film.
+    const strip = (s: string) => s.replace(/^\s*(the|a|an)\s+/i, "");
+    const typed = ranked(credits, (c) =>
+      Math.min(wordTypos(strip(guess), strip(c.title)), wordTypos(strip(guess), strip(c.title.split(":")[0]))),
+    );
+    if (new Set(typed.items.map((c) => c.id)).size === 1) ({ best, items } = { best: 1, items: typed.items });
   }
   if (items.length === 0) {
     // Another title the film goes by ("The Road Warrior" for Mad Max 2), among their best-known films.

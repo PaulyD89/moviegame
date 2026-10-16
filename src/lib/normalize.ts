@@ -220,6 +220,32 @@ const soundWords = (s: string) =>
     .map((w) => SAME_WORD[w] ?? w);
 
 /**
+ * Typos forgiven in one word of a longer name: 2 from 8 letters, 1 for 3-7, none shorter. Two in
+ * a short word makes a different name ("Emma Watson" would become Gemma Aston).
+ */
+const wordAllowance = (word: string) => (word.length >= 8 ? 2 : word.length >= 3 ? 1 : 0);
+
+/**
+ * Typos counted word by word, for names of two or more words: "Kiera Knoghtly" for Keira
+ * Knightley is 1 + 2 typos, each word within its own allowance. Same number of words, numbers
+ * exact. Returns the total, or Infinity when any word is too far off.
+ */
+export function wordTypos(guess: string, real: string): number {
+  const g = soundWords(guess);
+  const r = soundWords(real);
+  if (g.length < 2 || g.length !== r.length) return Infinity;
+  let total = 0;
+  for (let i = 0; i < g.length; i++) {
+    if (g[i] === r[i]) continue;
+    if (/^\d+$/.test(g[i]) || /^\d+$/.test(r[i])) return Infinity;
+    const dist = typoDistance(g[i], r[i]);
+    if (dist > wordAllowance(r[i])) return Infinity;
+    total += dist;
+  }
+  return total;
+}
+
+/**
  * Does the guess sound like the real name, spelled by ear? "Kay Huay Quan" = "Ke Huy Quan",
  * "Zack Galifinakis" = "Zach Galifianakis". Every word must sound alike (Double Metaphone),
  * and the spelling must still be in the neighborhood, so different names don't slip through.
