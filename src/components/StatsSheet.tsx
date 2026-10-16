@@ -296,7 +296,7 @@ function StreakStat({ value }: { value: number }) {
           alt=""
           width={320}
           height={170}
-          className="pointer-events-none absolute -inset-x-2 -bottom-1.5 h-[calc(100%+0.5rem)] w-[calc(100%+1rem)] max-w-none origin-bottom animate-flicker object-fill"
+          className="pointer-events-none absolute -inset-x-2 -bottom-1.5 h-[calc(100%+0.5rem)] w-[calc(100%+1rem)] max-w-none object-fill opacity-60"
         />
       )}
       <div className="relative text-xl leading-tight font-bold text-white drop-shadow-[0_1px_2px_rgb(0_0_0/0.8)]">

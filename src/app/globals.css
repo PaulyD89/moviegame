@@ -9,7 +9,6 @@
   --animate-fade: fade 0.3s ease-out both;
   --animate-sheet: sheet 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-modal: modal 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-flicker: flicker 2.4s ease-in-out infinite;
 }
 
 @keyframes modal {
@@ -39,14 +38,6 @@
   0% { transform: scale(0.6); opacity: 0; }
   60% { transform: scale(1.15); opacity: 1; }
   100% { transform: scale(1); }
-}
-
-/* Streak flames: a slow, uneven breathe from the base. */
-@keyframes flicker {
-  0%, 100% { transform: scaleY(1); opacity: 0.95; }
-  30% { transform: scaleY(1.06) scaleX(0.99); opacity: 1; }
-  55% { transform: scaleY(0.97); opacity: 0.88; }
-  80% { transform: scaleY(1.04) scaleX(1.01); opacity: 1; }
 }
 
 @keyframes rise {
