@@ -82,3 +82,14 @@ body::-webkit-scrollbar,
 *::-webkit-scrollbar {
   display: none;
 }
+
+/* Guess boxes are search fields (to stop iPhone contact AutoFill); hide the search clear button and styling. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="search"] {
+  -webkit-appearance: none;
+  appearance: none;
+}

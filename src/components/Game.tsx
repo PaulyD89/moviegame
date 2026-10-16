@@ -245,6 +245,8 @@ export function Game() {
           onChange={(e) => setGuess(e.target.value)}
           placeholder={card.kind === "movie" ? "Type an actor…" : "Type a movie…"}
           aria-labelledby="guess-label"
+          // Safari never offers contact AutoFill on a search box; it ignores autocomplete="off".
+          type="search"
           name="mh-answer"
           autoComplete="off"
           autoCorrect="off"
