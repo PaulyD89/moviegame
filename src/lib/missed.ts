@@ -1,5 +1,5 @@
 import "server-only";
-import { wordKeys, titleKey, nameKey } from "./normalize";
+import { nameKey, soundsLike, titleKey, wordKeys } from "./normalize";
 import { createAdminClient } from "./supabase/admin";
 import { matchGuess } from "./game";
 import { getMovie, getPerson } from "./tmdb";
@@ -22,7 +22,7 @@ export type SuspectMiss = {
   acceptedNow: boolean;
 };
 
-/** Share of words in common (0-1), or 0.8 when one key contains the other. */
+/** Share of words in common (0-1); 0.8 when one key contains the other, 0.9 when it sounds the same. */
 function likeness(guess: string, real: string) {
   const g = wordKeys(guess);
   const r = wordKeys(real);
@@ -32,6 +32,8 @@ function likeness(guess: string, real: string) {
   const gk = titleKey(guess);
   const rk = titleKey(real);
   if (gk.length >= 5 && (rk.includes(gk) || gk.includes(rk))) score = Math.max(score, 0.8);
+  // Spelled by ear ("kay huay quan" for Ke Huy Quan) shares few exact words but is clearly close.
+  if (soundsLike(guess, real)) score = Math.max(score, 0.9);
   if (nameKey(guess) === nameKey(real)) score = 1;
   return score;
 }
