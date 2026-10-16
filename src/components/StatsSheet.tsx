@@ -48,14 +48,22 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
           width={640}
           height={320}
           priority
-          className="h-auto w-36 drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)]"
+          className="h-auto w-32 drop-shadow-[0_6px_24px_rgb(251_191_36/0.25)]"
         />
       </h2>
 
       <GlobalRankCard rank={rank} />
 
-      <h3 className="mt-3 text-[11px] uppercase tracking-widest text-zinc-300">Daily Movie Chain</h3>
-      <div className="mt-1.5 grid grid-cols-4 gap-1.5 text-center">
+      <h3 className="mt-2 flex justify-center">
+        <Image
+          src="/daily-chain-header-600.webp"
+          alt="Daily Movie Chain"
+          width={600}
+          height={200}
+          className="h-auto w-44"
+        />
+      </h3>
+      <div className="mt-1 grid grid-cols-4 gap-1.5 text-center">
         <Stat label="Played" value={daily.played} />
         <Stat label="Win %" value={pct(daily.won, daily.played)} />
         <Stat label="Streak" value={currentStreak(daily, todayNumber)} />
@@ -68,7 +76,7 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
 
       <LinksChart dist={daily.dist} highlight={todayLinks} />
 
-      <h3 className="mt-3 text-[11px] uppercase tracking-widest text-zinc-300">Challenges</h3>
+      <h3 className="mt-3 text-[11px] uppercase tracking-widest text-zinc-300">VS Games</h3>
       <div className="mt-1.5 grid grid-cols-3 gap-1.5 text-center">
         <Stat label="Played" value={vs.played} />
         <Stat label="Wins" value={vs.won} />
@@ -131,7 +139,7 @@ function GlobalRankCard({ rank }: { rank: GlobalRank | null | undefined }) {
             <li>⚡ Speed bonus: <b className="text-white">+1</b> for each link answered within 20 seconds</li>
           </ul>
           <p className="mt-2 text-xs text-zinc-400">
-            Only the daily counts, since everyone plays the same puzzle once a day. Challenge wins show in
+            Only the daily counts, since everyone plays the same puzzle once a day. VS game wins show in
             your stats below. The monthly rank starts over on the 1st.
           </p>
         </div>
@@ -183,7 +191,6 @@ function LinksChart({ dist, highlight }: { dist?: number[]; highlight?: number }
 
   return (
     <figure className="mt-2">
-      <figcaption className="mb-1 text-[11px] text-zinc-300">Links made per game</figcaption>
       <div className="flex h-12 items-end gap-0.5" role="list" aria-label="Links made per daily game">
         {counts.map((n, i) => (
           <button
@@ -213,6 +220,7 @@ function LinksChart({ dist, highlight }: { dist?: number[]; highlight?: number }
           </span>
         ))}
       </div>
+      <figcaption className="text-center text-[10px] text-zinc-400">Links made per game</figcaption>
     </figure>
   );
 }
