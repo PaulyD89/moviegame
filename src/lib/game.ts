@@ -123,8 +123,9 @@ export function usedKeysFor(card: Card) {
 }
 
 /** A well-known movie this person acted in that hasn't been used yet (1970+, or rarely the 1960s). */
-async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string, late = false): Promise<Card | null> {
-  const eligible = person.movie_credits.cast.filter(
+/** This person's films that can be a card: real roles, unused, with a poster, not documentaries. */
+function movieOptions(person: TmdbPerson, used: Set<string>, seed: string) {
+  return person.movie_credits.cast.filter(
     (c) =>
       c.poster_path &&
       !used.has(cardKey({ kind: "movie", id: c.id })) &&
@@ -134,6 +135,10 @@ async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string,
       // A few TMDB credits come without genres (one of Michael Keaton's did, and crashed his answers).
       !(c.genre_ids ?? []).some((g) => SKIP_GENRES.has(g)),
   );
+}
+
+async function nextMovieFor(person: TmdbPerson, used: Set<string>, seed: string, late = false): Promise<Card | null> {
+  const eligible = movieOptions(person, used, seed);
   if (!used.has(SIXTIES_USED) && roll(`${seed}:60s`) < SIXTIES_SHARE) {
     const sixties = eligible
       .filter((c) => isSixties(yearOf(c.release_date)) && c.vote_count >= 500)
@@ -437,19 +442,16 @@ export async function checkGuess(
   return { outcome: "correct", answer, next, close };
 }
 
-/** Swap the current card for another of the same kind (costs a letter on the client). */
-export async function passCard(
-  card: Card,
-  from: Card | null,
-  usedKeys: string[],
-  dateStr: string,
-  /** The previous move was a pass too: deal a well-known film rather than dig deeper. */
-  afterPass = false,
-): Promise<Card> {
+/**
+ * Swap the current card for another of the same kind (costs a letter). From #4 a pass keeps the
+ * chain and gets easier: the same actor's best-known film you haven't had (or the movie's
+ * best-known actor), and a famous film only once those run out. Before #4 it picked at random
+ * among the actor's films, which drifted obscure with each pass.
+ */
+export async function passCard(card: Card, from: Card | null, usedKeys: string[], dateStr: string): Promise<Card> {
   const used = new Set([...usedKeys, cardKey(card)]);
   const seed = `${dateStr}:${from ? cardKey(from) : "start"}`;
-  // Passing again usually means the actor's remaining films are getting obscure; reset to a well-known one.
-  if (afterPass && shapeRules(dateStr)) return freshCard(card.kind, used, `${seed}:fresh:${cardKey(card)}`, true);
+  if (shapeRules(dateStr)) return (await easierCard(card, from, used, seed)) ?? freshCard(card.kind, used, `${seed}:fresh:${cardKey(card)}`, true);
   if (from?.kind === "person" && card.kind === "movie") {
     const next = await nextMovieFor(await getPerson(from.id), used, seed);
     if (next) return next;
@@ -459,4 +461,29 @@ export async function passCard(
     if (next) return next;
   }
   return freshCard(card.kind, used, `${seed}:fresh`);
+}
+
+/** The best-known option on the same link of the chain, or null if there's no well-known one left. */
+async function easierCard(card: Card, from: Card | null, used: Set<string>, seed: string): Promise<Card | null> {
+  if (from?.kind === "person" && card.kind === "movie") {
+    const best = movieOptions(await getPerson(from.id), used, seed)
+      .filter((c) => c.vote_count >= 2000 && yearWeight(yearOf(c.release_date)) > 0)
+      .sort((a, b) => b.vote_count - a.vote_count)[0];
+    return best ? movieCard(await getMovie(best.id)) : null;
+  }
+  if (from?.kind === "movie" && card.kind === "person") {
+    const cast = (await getMovie(from.id)).credits.cast.filter(
+      (c) =>
+        c.order < 12 &&
+        c.profile_path &&
+        !used.has(cardKey({ kind: "person", id: c.id })) &&
+        !NOT_A_ROLE.test(c.character ?? ""),
+    );
+    const people = (await Promise.all(cast.map((c) => getPerson(c.id).catch(() => null)))).filter(
+      (p): p is TmdbPerson => !!p && famousCredits(p) >= 3,
+    );
+    const best = people.sort((a, b) => famousCredits(b) - famousCredits(a))[0];
+    return best ? personCard(best) : null;
+  }
+  return null;
 }
