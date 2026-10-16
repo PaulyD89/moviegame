@@ -13,7 +13,7 @@ import { HelpButton, HowToPlay } from "./HowToPlay";
 import { StatsButton, StatsSheet } from "./StatsSheet";
 import { Logo } from "./Logo";
 import { backupAfterGame } from "./progress/snapshot";
-import { InBoxClock, SpeedClock } from "./SpeedClock";
+import { InBoxClock } from "./SpeedClock";
 import { UsedWarning } from "./UsedWarning";
 import { Results } from "./Results";
 import { currentStreak, loadGame, loadStats, recordResult, saveGame, type SavedGame } from "./storage";
@@ -33,7 +33,6 @@ export function Game() {
   const [guess, setGuess] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [misses, setMisses] = useState(0); // re-triggers the shake animation
-  const [typing, setTyping] = useState(false); // shows the speed clock inside the guess box
   const [showHelp, setShowHelp] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -206,7 +205,6 @@ export function Game() {
       <Letters count={game.letters} />
 
       <Progress links={game.links.length} />
-      <SpeedClock key={`speed-${cardKey(card)}-${game.links.length}`} shownAt={game.cardShownAt} fastSoFar={game.fastLinks ?? 0} />
 
       <figure
         key={`${cardKey(card)}-${misses}`}
@@ -256,18 +254,14 @@ export function Game() {
             spellCheck={false}
             enterKeyHint="go"
             onFocus={(e) => {
-              setTyping(true);
               const el = e.currentTarget;
               // Keep the input above the on-screen keyboard.
               setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
             }}
-            onBlur={() => setTyping(false)}
             disabled={isPending}
             className="w-full rounded-xl border border-amber-400/40 bg-black/40 py-3.5 pr-16 pl-4 text-lg outline-none placeholder:text-zinc-600 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
           />
-          {typing && (
-            <InBoxClock key={`box-${cardKey(card)}-${game.links.length}`} shownAt={game.cardShownAt} />
-          )}
+          <InBoxClock key={`box-${cardKey(card)}-${game.links.length}`} shownAt={game.cardShownAt} />
         </div>
         <div className="flex gap-2">
           <button
