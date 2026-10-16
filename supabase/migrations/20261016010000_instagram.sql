@@ -7,3 +7,4 @@ create table if not exists app_settings (
   updated_at timestamptz not null default now()
 );
 alter table app_settings enable row level security;
+alter table daily_puzzles add column if not exists instagram_trivia text;

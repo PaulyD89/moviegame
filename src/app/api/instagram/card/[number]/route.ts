@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: RouteContext<"/api/insta
   if (!card) return new Response("Not found", { status: 404 });
 
   if (new URL(request.url).searchParams.has("caption")) {
-    return new Response(dailyCaption(number, card), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    return new Response(await dailyCaption(number, card), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
   }
   const jpeg = await dailyCardJpeg(number, card);
   return new Response(new Uint8Array(jpeg), {

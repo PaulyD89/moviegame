@@ -5,6 +5,7 @@ import { ImageResponse } from "next/og";
 import sharp from "sharp";
 import { logError } from "./errors";
 import { createAdminClient } from "./supabase/admin";
+import { writeTrivia } from "./trivia";
 import { LINKS_TO_WIN, type Card } from "./types";
 
 /**
@@ -74,12 +75,26 @@ export async function dailyCardJpeg(number: number, card: Card) {
   return sharp(Buffer.from(await png.arrayBuffer())).jpeg({ quality: 90 }).toBuffer();
 }
 
-export function dailyCaption(number: number, card: Card) {
+/** The puzzle's trivia line: written once, then saved so every caption for it matches. */
+async function triviaFor(number: number, card: Card) {
+  const db = createAdminClient();
+  const { data } = await db.from("daily_puzzles").select("instagram_trivia").eq("number", number).maybeSingle();
+  if (data?.instagram_trivia) return data.instagram_trivia as string;
+  const line = await writeTrivia(card);
+  if (line) await db.from("daily_puzzles").update({ instagram_trivia: line }).eq("number", number);
+  return line;
+}
+
+export async function dailyCaption(number: number, card: Card) {
   const start = card.year ? `${card.name} (${card.year})` : card.name;
+  const trivia = await triviaFor(number, card);
   return [
     `Movie Horse #${number} is live 🐴`,
     "",
-    `Today's chain starts with ${start}. ${ask(card)}, then keep the chain going for ${LINKS_TO_WIN} links. Don't spell M-O-V-I-E.`,
+    `Today's chain starts with ${start}.`,
+    ...(trivia ? ["", `🍿 ${trivia}`] : []),
+    "",
+    `${ask(card)}, then keep the chain going for ${LINKS_TO_WIN} links. Don't spell M-O-V-I-E.`,
     "",
     "Play free at moviehorsegame.com (link in bio) 🎬",
     "",
@@ -130,7 +145,7 @@ export async function postDailyToInstagram(number: number, card: Card) {
   try {
     const container = await graph(`${userId}/media`, {
       image_url: `${SITE}/api/instagram/card/${number}`,
-      caption: dailyCaption(number, card),
+      caption: await dailyCaption(number, card),
       access_token: token,
     });
     const post = await graph(`${userId}/media_publish`, { creation_id: container, access_token: token });
