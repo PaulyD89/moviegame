@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { dismiss, logout, stats } from "@/app/admin/actions";
+import { dismiss, logout, missedAnswers, stats } from "@/app/admin/actions";
+import type { SuspectMiss } from "@/lib/missed";
 import type { AdminStats } from "@/lib/admin";
 
 const REFRESH_MS = 5_000;
@@ -67,6 +68,7 @@ export function AdminDashboard() {
       </header>
 
       <ErrorBanner errors={data.errors} now={now || loadedAt} onChange={() => refresh.current()} />
+      <MissedAnswers />
 
       <Section title="Live right now">
         <Tile label="Live games" value={data.live_games} hint="someone on screen in the last 30s" big />
@@ -204,6 +206,45 @@ function ErrorBanner({ errors, now, onChange }: { errors: AdminStats["errors"]; 
         ))}
       </ul>
       <p className="mt-2 text-xs text-zinc-400">Send me these and I&apos;ll dig in. Dismissed errors stay in the log.</p>
+    </section>
+  );
+}
+
+/** Wrong guesses that look like real answers, checked on demand (it looks up every card's credits). */
+function MissedAnswers() {
+  const [rows, setRows] = useState<SuspectMiss[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const check = () => {
+    setBusy(true);
+    missedAnswers()
+      .then(setRows)
+      .catch(() => setRows([]))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <section className="rounded-xl border border-white/10 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-xs uppercase tracking-widest text-zinc-300">Possible missed answers · last 3 days</h2>
+        <button onClick={check} disabled={busy} className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-zinc-200 disabled:opacity-50">
+          {busy ? "Checking…" : rows ? "Check again" : "Check"}
+        </button>
+      </div>
+      {rows && rows.length === 0 && <p className="mt-2 text-sm text-zinc-400">Nothing suspicious. Wrong guesses all look genuinely wrong.</p>}
+      {rows && rows.length > 0 && (
+        <ul className="mt-2 divide-y divide-white/10 text-sm">
+          {rows.map((r, i) => (
+            <li key={i} className="flex flex-wrap items-baseline gap-x-2 py-1.5">
+              <span className="text-zinc-400">{r.mode === "vs" ? "VS" : "Daily"}</span>
+              <span className="text-zinc-300">{r.card}:</span>
+              <b className="text-red-300">&ldquo;{r.guess}&rdquo;</b>
+              <span className="text-zinc-400">closest real answer</span>
+              <b className="text-amber-300">{r.closest}</b>
+              <span className="text-xs text-zinc-500">{Math.round(r.score * 100)}% alike</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-xs text-zinc-400">Send me anything here that should have counted and I&apos;ll widen the matching for it.</p>
     </section>
   );
 }

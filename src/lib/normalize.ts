@@ -59,6 +59,21 @@ export function nameKey(s: string): string {
     .join("");
 }
 
+const FILLER = new Set(["the", "a", "an", "and", "of", "in", "on", "to"]);
+
+/** The meaningful words of a title or name, each evened out like nameKey ("Ocean's Eleven" -> oceans, 11). */
+export function wordKeys(s: string): string[] {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/['’ʻʼ`´]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w && !FILLER.has(w))
+    .map((w) => SAME_WORD[w] ?? w);
+}
+
 /** First names people swap freely. Each group maps to its first entry. */
 const NICKNAMES = [
   ["catherine", "cathy", "kathy", "katherine", "kathryn", "cate", "kate", "katie", "kat"],

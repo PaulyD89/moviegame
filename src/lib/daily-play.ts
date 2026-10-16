@@ -172,6 +172,14 @@ export async function playDaily(date: string, playerId: string, guess: string | 
     if (r.outcome === "wrong") {
       next = addLetter(s, "wrong"); // same card, same clock
       result = { outcome: "wrong" };
+      // Kept so /admin can spot answers the matcher should have accepted.
+      await db()
+        .from("missed_guesses")
+        .insert({ puzzle_number: number, card: s.card, guess: guess.slice(0, 120) })
+        .then(
+          () => {},
+          () => {},
+        );
     } else {
       const shown = row.card_shown_at ? Date.parse(row.card_shown_at) : nowMs;
       const fast = nowMs - shown <= FAST_MS + GRACE_MS;
