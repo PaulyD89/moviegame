@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { dismiss, letterboxdList, logout, missedAnswers, stats } from "@/app/admin/actions";
@@ -53,7 +54,17 @@ export function AdminDashboard() {
   return (
     <div className="flex flex-col gap-6 text-white">
       <header className="flex items-center justify-between">
-        <h1 className="font-display text-3xl tracking-wide text-amber-400">MOVIE HORSE ADMIN</h1>
+        <h1 className="flex items-center gap-3">
+          <Image
+            src="/logo-480.webp"
+            alt="Movie Horse"
+            width={480}
+            height={320}
+            priority
+            className="h-auto w-24 drop-shadow-[0_4px_14px_rgb(251_191_36/0.25)]"
+          />
+          <span className="text-xl font-light tracking-wide text-amber-400">Admin Dashboard</span>
+        </h1>
         <div className="flex items-center gap-3 text-sm text-zinc-300">
           <span aria-live="polite">{error ? "⚠ Refresh failed" : `Updated ${Math.max(0, Math.round((now - loadedAt) / 1000))}s ago`}</span>
           <button
