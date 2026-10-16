@@ -8,7 +8,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col">{children}</div>
 
       <footer className="pt-2 text-center text-[11px] leading-relaxed text-zinc-400">
-        <nav className="mb-1.5 flex justify-center gap-4 text-xs text-zinc-300">
+        <nav className="mb-1.5 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-zinc-300">
           <Link href="/privacy" className="underline-offset-2 hover:underline">
             Privacy
           </Link>
@@ -19,6 +19,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
             Contact
           </a>
           <ProgressLink className="underline-offset-2 hover:underline">Save Progress</ProgressLink>
+          <a
+            href="https://www.instagram.com/moviehorsegame/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline-offset-2 hover:underline"
+          >
+            Instagram
+          </a>
         </nav>
         Movie data &amp; images from TMDB. This product uses the TMDB API but is not endorsed or
         certified by TMDB.

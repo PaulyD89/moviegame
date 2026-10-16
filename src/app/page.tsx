@@ -17,6 +17,8 @@ const structuredData = {
   applicationCategory: "Game",
   playMode: ["SinglePlayer", "MultiPlayer"],
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  // The official accounts, so search engines link them to the game.
+  sameAs: ["https://www.instagram.com/moviehorsegame/", "https://letterboxd.com/TheMovieHorse/"],
 };
 
 export default function Home() {
