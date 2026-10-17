@@ -6,6 +6,7 @@ import { answerStats } from "@/lib/answer-stats";
 import { dailyRank } from "@/lib/daily-log";
 import { openDaily, playDaily, type DailyState } from "@/lib/daily-play";
 import { playerId } from "@/lib/player";
+import { vsRecord } from "@/lib/challenge";
 import { CLAIM_STREAK, claimName, claimedName, playStreak } from "@/lib/names";
 import { globalRank } from "@/lib/rank";
 import { allow } from "@/lib/rate-limit";
@@ -91,6 +92,12 @@ export async function myBadgeFacts(): Promise<BadgeFacts | null> {
 export async function myStreak() {
   const pid = await playerId(false);
   return pid ? playStreak(pid) : null;
+}
+
+/** This player's VS games played and won, from the server (the same on every linked device). */
+export async function myVsRecord() {
+  const pid = await playerId(false);
+  return pid ? vsRecord(pid) : null;
 }
 
 /** This player's claimed name, and whether they've earned one (a 7-day streak). */

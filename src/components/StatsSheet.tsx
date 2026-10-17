@@ -5,7 +5,7 @@ import { Modal } from "./Modal";
 import { ProgressLink } from "./progress/ProgressLink";
 
 import { useEffect, useRef, useState } from "react";
-import { myBadgeFacts, myGlobalRank } from "@/app/actions";
+import { myBadgeFacts, myGlobalRank, myVsRecord } from "@/app/actions";
 import { BADGES, type BadgeFacts, type BadgeId } from "@/lib/badges";
 import type { GlobalRank } from "@/lib/rank";
 import { LINKS_TO_WIN } from "@/lib/types";
@@ -22,7 +22,8 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
 }) {
   // Only opened by a tap, so reading storage during the first render is safe.
   const daily = useSyncedStats();
-  const [vs] = useState(loadChallengeStats);
+  // This device's count first, then the server's record, which every linked device shares.
+  const [vs, setVs] = useState(loadChallengeStats);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [rank, setRank] = useState<GlobalRank | null | undefined>(undefined);
   const [facts, setFacts] = useState<BadgeFacts | null>(null);
@@ -33,6 +34,9 @@ export function StatsSheet({ todayNumber, todayLinks, onClose }: {
       .catch(() => setRank(null));
     myBadgeFacts()
       .then(setFacts)
+      .catch(() => {});
+    myVsRecord()
+      .then((r) => r && setVs((local) => ({ ...local, played: r.played, won: r.won })))
       .catch(() => {});
   }, []);
 

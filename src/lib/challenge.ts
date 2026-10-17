@@ -472,6 +472,21 @@ async function closeAbandoned() {
   return stale.length;
 }
 
+/**
+ * A player's VS record from the server, so every device linked by a save code shows the same
+ * numbers. Games closed as abandoned (no winner) don't count.
+ */
+export async function vsRecord(playerId: string) {
+  const { data } = await db()
+    .from("challenge_players")
+    .select("challenges!inner(status, winner_id)")
+    .eq("player_id", playerId)
+    .eq("challenges.status", "finished")
+    .not("challenges.winner_id", "is", null);
+  const games = (data ?? []) as unknown as { challenges: { winner_id: string } }[];
+  return { played: games.length, won: games.filter((g) => g.challenges.winner_id === playerId).length };
+}
+
 /** The host can remove someone from the lobby (say, a friend who never showed up). */
 export async function removeFromLobby(id: string, hostId: string, seat: number) {
   const state = await load(id);
