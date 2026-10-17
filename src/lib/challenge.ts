@@ -309,6 +309,32 @@ export async function startChallenge(id: string, playerId: string) {
   return started;
 }
 
+/**
+ * The current card's run so far: how many turns in a row it has gone unanswered, and who brought
+ * it (the player whose correct answer made it), if anyone did.
+ */
+async function cardRun(challengeId: string, card: Card, limit: number) {
+  const { data } = await db()
+    .from("challenge_moves")
+    .select("player_id, prompt, outcome, answer")
+    .eq("challenge_id", challengeId)
+    .order("id", { ascending: false })
+    .limit(limit + 1);
+  const moves = (data ?? []) as { player_id: string; prompt: Card | null; outcome: MoveOutcome; answer: Card | null }[];
+  let misses = 0;
+  while (
+    misses < moves.length &&
+    moves[misses].outcome !== "correct" &&
+    moves[misses].prompt &&
+    cardKey(moves[misses].prompt!) === cardKey(card)
+  ) {
+    misses++;
+  }
+  const before = moves[misses];
+  const owner = before?.outcome === "correct" && before.answer && cardKey(before.answer) === cardKey(card) ? before.player_id : null;
+  return { misses, owner };
+}
+
 async function applyMove(
   challenge: ChallengeRow,
   players: PlayerRow[],
@@ -324,8 +350,14 @@ async function applyMove(
   if (outcome === "correct" && answer) {
     card = answer; // the answer becomes the next player's prompt
   } else {
+    // A miss, pass or timeout costs a letter and the same card goes round to the next player.
+    // Once everyone still in has missed it, it's swapped for a fresh one so the table never sticks.
+    // The player whose answer made the card doesn't get it back: when it would, they get a new movie.
+    const alive = players.filter((p) => !isOut(p));
+    const run = await cardRun(challenge.id, challenge.card!, alive.length);
+    const tries = alive.length - (run.owner && alive.some((p) => p.player_id === run.owner) ? 1 : 0);
     mover.letters += 1;
-    card = await startCard(used, `${challenge.id}:${challenge.version}`);
+    card = run.misses + 1 >= tries ? await startCard(used, `${challenge.id}:${challenge.version}`) : challenge.card!;
   }
   for (const key of usedKeysFor(card)) used.add(key);
 
