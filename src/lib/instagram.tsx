@@ -38,7 +38,7 @@ export async function dailyCardJpeg(number: number, card: Card, format: "post" |
           flexDirection: "column",
           alignItems: "center",
           justifyContent: story ? "center" : "flex-start",
-          padding: story ? "120px 64px" : "60px 64px",
+          padding: story ? "70px 56px" : "60px 64px",
           color: "white",
           // Movie days gold on black, actor days deep burgundy, so the grid alternates.
           background:
@@ -48,30 +48,30 @@ export async function dailyCardJpeg(number: number, card: Card, format: "post" |
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img> */}
-        <img src={await logo} width={story ? 390 : 330} height={story ? 260 : 220} alt="" />
-        <div style={{ display: "flex", fontFamily: "Anton", fontSize: 50, color: AMBER, letterSpacing: 4, marginTop: 10 }}>
+        <img src={await logo} width={story ? 560 : 330} height={story ? 373 : 220} alt="" />
+        <div style={{ display: "flex", fontFamily: "Anton", fontSize: story ? 72 : 50, color: AMBER, letterSpacing: 4, marginTop: 10 }}>
           {`MOVIE CHAIN #${number} IS LIVE`}
         </div>
         {card.image ? (
           // eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img>
           <img
             src={card.image}
-            width={story ? 520 : 400}
-            height={story ? 780 : 600}
+            width={story ? 600 : 400}
+            height={story ? 900 : 600}
             alt=""
-            style={{ marginTop: story ? 50 : 36, borderRadius: 22, border: "3px solid rgba(251,191,36,0.45)", objectFit: "cover" }}
+            style={{ marginTop: story ? 40 : 36, borderRadius: 22, border: "3px solid rgba(251,191,36,0.45)", objectFit: "cover" }}
           />
         ) : (
-          <div style={{ display: "flex", marginTop: 36, width: story ? 520 : 400, height: story ? 780 : 600, borderRadius: 22, background: "#27272a" }} />
+          <div style={{ display: "flex", marginTop: 36, width: story ? 600 : 400, height: story ? 900 : 600, borderRadius: 22, background: "#27272a" }} />
         )}
-        <div style={{ display: "flex", fontSize: 30, color: "#d4d4d8", marginTop: 30 }}>Today starts with</div>
-        <div style={{ display: "flex", fontSize: 54, fontWeight: 700, marginTop: 4, textAlign: "center" }}>
+        <div style={{ display: "flex", fontSize: story ? 38 : 30, color: "#d4d4d8", marginTop: 30 }}>Today starts with</div>
+        <div style={{ display: "flex", fontSize: story ? 66 : 54, fontWeight: 700, marginTop: 4, textAlign: "center" }}>
           {card.year ? `${card.name} (${card.year})` : card.name}
         </div>
-        <div style={{ display: "flex", fontFamily: "Anton", fontSize: 40, color: AMBER, marginTop: 18, letterSpacing: 2 }}>
+        <div style={{ display: "flex", fontFamily: "Anton", fontSize: story ? 46 : 40, color: AMBER, marginTop: 18, letterSpacing: 2 }}>
           {`${ask(card).toUpperCase()} · ${LINKS_TO_WIN} LINKS TO WIN`}
         </div>
-        <div style={{ display: "flex", marginTop: story ? 70 : "auto", fontSize: 34, color: "#e4e4e7" }}>
+        <div style={{ display: "flex", marginTop: story ? 56 : "auto", fontSize: story ? 42 : 34, color: "#e4e4e7" }}>
           {"Don't spell M-O-V-I-E  ·  moviehorsegame.com"}
         </div>
       </div>
