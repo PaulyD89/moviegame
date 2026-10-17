@@ -1,9 +1,9 @@
 import "server-only";
 import { puzzleDate, puzzleNumber } from "./daily-clock";
 import { createAdminClient } from "./supabase/admin";
+import { CLAIM_STREAK } from "./types";
 
-/** A 7-day streak (days played in a row) earns a claimed name. */
-export const CLAIM_STREAK = 7;
+export { CLAIM_STREAK };
 
 const db = () => createAdminClient();
 

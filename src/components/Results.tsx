@@ -4,16 +4,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { useEffect, useState } from "react";
-import { myAnswerStats, myDailyRank } from "@/app/actions";
+import { myAnswerStats, myDailyRank, myName } from "@/app/actions";
 import type { LinkCompare } from "@/lib/answer-stats";
 import { msUntilNextPuzzle } from "@/lib/daily-clock";
-import { LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
+import { CLAIM_STREAK, LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
 import { Logo } from "./Logo";
 import { LetterboxdLink, useLetterboxdLinks } from "./Letterboxd";
 import { StatsSheet } from "./StatsSheet";
 import { NotifyButton } from "./push/NotifyButton";
-import { ReminderNudge } from "./push/ReminderNudge";
+import { ComeBackNudge } from "./push/ComeBackNudge";
 import { isPerfect, type SavedGame, type Stats } from "./storage";
 import { useSyncedStats } from "./useStats";
 import { ClaimName } from "./ClaimName";
@@ -216,6 +216,7 @@ export function Results({ game }: { game: SavedGame }) {
             <Stat label="Best" value={String(stats.maxStreak)} />
           </div>
         )}
+        {stats.streak > 0 && stats.maxStreak < CLAIM_STREAK && <StreakGoal streak={stats.streak} />}
         <button
           onClick={() => setShowStats(true)}
           className="block min-h-11 w-full px-4 text-center text-sm font-semibold text-amber-400 active:bg-white/5"
@@ -228,7 +229,7 @@ export function Results({ game }: { game: SavedGame }) {
       )}
 
       <NextPuzzle />
-      <ReminderNudge />
+      <ComeBackNudge />
       <NotifyButton mode="daily" />
     </div>
   );
@@ -342,6 +343,30 @@ function HowYouCompare({ number }: { number: number }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** "Day 2 of 7": the road to a claimed screen name, shown until a name can be claimed. */
+function StreakGoal({ streak }: { streak: number }) {
+  const [claimed, setClaimed] = useState(false);
+  useEffect(() => {
+    myName()
+      .then((s) => setClaimed(!!s.name || s.eligible))
+      .catch(() => {});
+  }, []);
+  if (claimed) return null;
+  return (
+    <div className="flex items-center gap-2.5 px-4 py-2.5">
+      <p className="min-w-0 flex-1 text-[13px] leading-snug text-zinc-300">
+        🔥 <b className="font-semibold text-white">Day {streak} of {CLAIM_STREAK}</b> – choose your screen name at{" "}
+        {CLAIM_STREAK}
+      </p>
+      <div className="flex shrink-0 gap-1" aria-hidden>
+        {Array.from({ length: CLAIM_STREAK }, (_, i) => (
+          <i key={i} className={`size-2 rounded-full ${i < streak ? "bg-amber-400" : "bg-white/15"}`} />
+        ))}
+      </div>
+    </div>
   );
 }
 

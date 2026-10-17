@@ -97,6 +97,8 @@ export async function openDaily(
   country: string | null = null,
   /** Where they arrived from ("Reddit ad", "Google", "Direct"...), for the admin page. */
   source: string | null = null,
+  /** Which browser they play in ("Instagram app", "Safari"...), for the admin page. */
+  browser: string | null = null,
 ): Promise<DailySync | null> {
   const { number, card } = await dailyStart(date);
   const now = new Date().toISOString();
@@ -106,7 +108,7 @@ export async function openDaily(
     const state = freshState(card);
     const { error } = await db()
       .from("daily_plays")
-      .insert({ puzzle_number: number, player_id: playerId, state, card_shown_at: now, started_at: now, country, source });
+      .insert({ puzzle_number: number, player_id: playerId, state, card_shown_at: now, started_at: now, country, source, browser });
     if (!error) return sync(number, state, now);
     if (error.code !== "23505") throw error;
     const raced = await loadRow(number, playerId); // opened twice at once

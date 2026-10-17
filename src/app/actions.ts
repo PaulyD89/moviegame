@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { puzzleDate, puzzleNumber } from "@/lib/daily-clock";
 import { answerStats } from "@/lib/answer-stats";
+import { BROWSERS } from "@/lib/browser";
 import { dailyRank, dailyRecord } from "@/lib/daily-log";
 import { openDaily, playDaily, type DailyState } from "@/lib/daily-play";
 import { playerId } from "@/lib/player";
@@ -28,11 +29,17 @@ function checkDate(dateStr: string) {
  * Today's game as the server keeps it. `legacy` is a game this phone had in progress from
  * before the server kept games (carried over once, unranked).
  */
-export async function openToday(dateStr: string, legacy: DailyState | null, source?: string | null) {
+export async function openToday(
+  dateStr: string,
+  legacy: DailyState | null,
+  source?: string | null,
+  browser?: string | null,
+) {
   checkDate(dateStr);
   const country = (await headers()).get("x-vercel-ip-country")?.slice(0, 2).toUpperCase() || null;
   const from = typeof source === "string" ? source.replace(/[^\w ./-]/g, "").slice(0, 40) || null : null;
-  return openDaily(dateStr, await playerId(true), legacy, country, from);
+  const kind = BROWSERS.find((b) => b === browser) ?? null;
+  return openDaily(dateStr, await playerId(true), legacy, country, from, kind);
 }
 
 /** A guess, or a pass when `guess` is null. */

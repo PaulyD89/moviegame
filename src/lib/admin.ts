@@ -79,6 +79,8 @@ export type AdminStats = {
   countries: { country: string; players: number }[];
   /** Players by where they arrived from, last 7 days, with how many moved and finished. */
   sources: { source: string; players: number; moved: number; finished: number }[];
+  browsers: { browser: string; players: number; moved: number; finished: number }[];
+  returns: { dim: "puzzle" | "outcome" | "source" | "browser"; label: string; players: number; back: number }[];
   errors: {
     /** Not yet dismissed, from the last 7 days. */
     open: { id: number; at: string; source: string; path: string | null; message: string }[];
@@ -98,7 +100,7 @@ export async function getAdminStats(): Promise<AdminStats> {
   const today = puzzleNumber(puzzleDate());
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
   const weekAgo = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
-  const [stats, games, openErrors, dismissedErrors, growth, countries, sources] = await Promise.all([
+  const [stats, games, openErrors, dismissedErrors, growth, countries, sources, browsers, returns] = await Promise.all([
     supabase.rpc("admin_stats", { today_number: today }),
     supabase
       .from("challenges")
@@ -122,6 +124,8 @@ export async function getAdminStats(): Promise<AdminStats> {
     supabase.rpc("admin_growth", { today_number: today }),
     supabase.rpc("admin_countries", { days: 7 }),
     supabase.rpc("admin_sources", { days: 7 }),
+    supabase.rpc("admin_browsers", { days: 7 }),
+    supabase.rpc("admin_returns", { today_number: today }),
   ]);
   if (growth.error) throw growth.error;
   if (stats.error) throw stats.error;
@@ -145,6 +149,14 @@ export async function getAdminStats(): Promise<AdminStats> {
       players: Number(s.players),
       moved: Number(s.moved),
       finished: Number(s.finished),
+    })),
+    browsers: ((browsers.data ?? []) as { browser: string; players: number; moved: number; finished: number }[]).map(
+      (b) => ({ browser: b.browser, players: Number(b.players), moved: Number(b.moved), finished: Number(b.finished) }),
+    ),
+    returns: ((returns.data ?? []) as AdminStats["returns"]).map((r) => ({
+      ...r,
+      players: Number(r.players),
+      back: Number(r.back),
     })),
     errors: {
       open: (openErrors.data ?? []) as AdminStats["errors"]["open"],

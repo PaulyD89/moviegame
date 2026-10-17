@@ -94,7 +94,19 @@ export function AdminDashboard() {
       </Section>
 
       <Growth growth={data.growth} />
-      <Sources sources={data.sources} />
+      <Returns returns={data.returns} today={data.puzzleNumber} />
+      <Funnel
+        title="Top sources · last 7 days"
+        column="Source"
+        rows={data.sources.map((s) => ({ ...s, label: s.source }))}
+        empty="Recording started Oct 16; this fills in as people play."
+      />
+      <Funnel
+        title="Browsers · last 7 days"
+        column="Browser"
+        rows={data.browsers.map((b) => ({ ...b, label: b.browser }))}
+        empty="Recording started Oct 17; this fills in as people play."
+      />
       <Countries countries={data.countries} />
 
       <Section title="Challenges">
@@ -366,31 +378,40 @@ const regionName = (() => {
   }
 })();
 
-/** Top sources, last 7 days: share of players, and how many of each made a move and finished. */
-function Sources({ sources }: { sources: AdminStats["sources"] }) {
-  const total = sources.reduce((n, s) => n + s.players, 0);
-  const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 100)}%` : "–");
+/** Share of players per source or browser (last 7 days), and how many of each made a move and finished. */
+function Funnel({
+  title,
+  column,
+  rows,
+  empty,
+}: {
+  title: string;
+  column: string;
+  rows: { label: string; players: number; moved: number; finished: number }[];
+  empty: string;
+}) {
+  const total = rows.reduce((n, s) => n + s.players, 0);
   return (
     <section className="rounded-xl border border-white/10 p-4">
-      <h2 className="text-xs uppercase tracking-widest text-zinc-300">Top sources · last 7 days</h2>
+      <h2 className="text-xs uppercase tracking-widest text-zinc-300">{title}</h2>
       {total === 0 ? (
-        <p className="mt-2 text-sm text-zinc-400">Recording started Oct 16; this fills in as people play.</p>
+        <p className="mt-2 text-sm text-zinc-400">{empty}</p>
       ) : (
         <table className="mt-2 w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-zinc-400">
-              <th className="py-1 font-normal">Source</th>
+              <th className="py-1 font-normal">{column}</th>
               <th className="py-1 font-normal">Share</th>
               <th className="py-1 text-right font-normal">Made a move</th>
               <th className="py-1 text-right font-normal">Finished</th>
             </tr>
           </thead>
           <tbody>
-            {sources.slice(0, 10).map((s) => {
+            {rows.slice(0, 10).map((s) => {
               const share = Math.round((s.players / total) * 100);
               return (
-                <tr key={s.source} className="border-t border-white/5">
-                  <td className="py-1.5 pr-2 text-zinc-200">{s.source}</td>
+                <tr key={s.label} className="border-t border-white/5">
+                  <td className="py-1.5 pr-2 text-zinc-200">{s.label}</td>
                   <td className="py-1.5 pr-2">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-24 overflow-hidden rounded-full bg-white/10">
@@ -410,6 +431,67 @@ function Sources({ sources }: { sources: AdminStats["sources"] }) {
     </section>
   );
 }
+
+/**
+ * Next-day return: of the players who made a move on a puzzle, how many opened the next one.
+ * Per puzzle (the newest is still filling in), then split by how their game ended, source and
+ * browser, counting only next days that are over.
+ */
+function Returns({ returns, today }: { returns: AdminStats["returns"]; today: number }) {
+  const puzzles = returns.filter((r) => r.dim === "puzzle").sort((a, b) => Number(b.label) - Number(a.label));
+  const groups = [
+    { dim: "outcome", title: "By how their game ended" },
+    { dim: "source", title: "By source" },
+    { dim: "browser", title: "By browser" },
+  ] as const;
+  const bar = (r: { label: string; players: number; back: number }, label: React.ReactNode) => {
+    const share = r.players ? Math.round((r.back / r.players) * 100) : 0;
+    return (
+      <div key={r.label} className="flex items-center gap-2 py-1 text-sm">
+        <span className="w-32 shrink-0 truncate text-zinc-200">{label}</span>
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-amber-400" style={{ width: `${Math.max(2, share)}%` }} />
+        </div>
+        <span className="w-10 text-right tabular-nums text-zinc-200">{share}%</span>
+        <span className="w-24 text-right text-xs tabular-nums text-zinc-500">
+          {r.back} of {r.players}
+        </span>
+      </div>
+    );
+  };
+  return (
+    <section className="rounded-xl border border-white/10 p-4">
+      <h2 className="text-xs uppercase tracking-widest text-zinc-300">Came back the next day</h2>
+      <p className="mt-1 text-xs text-zinc-400">Players who made a move, and how many opened the next day&apos;s chain.</p>
+      <div className="mt-2">
+        {puzzles.map((r) =>
+          bar(
+            r,
+            <>
+              #{r.label} → #{Number(r.label) + 1}
+              {Number(r.label) === today - 1 && <span className="text-zinc-500"> · so far</span>}
+            </>,
+          ),
+        )}
+      </div>
+      {groups.map(({ dim, title }) => {
+        const rows = returns.filter((r) => r.dim === dim).sort((a, b) => b.players - a.players).slice(0, 6);
+        return (
+          <div key={dim} className="mt-3">
+            <h3 className="text-[11px] uppercase tracking-widest text-zinc-400">{title}</h3>
+            {rows.length ? (
+              rows.map((r) => bar(r, r.label))
+            ) : (
+              <p className="py-1 text-xs text-zinc-500">Fills in once a full next day has passed.</p>
+            )}
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 100)}%` : "–");
 
 /** Share of players by country, last 7 days. Shows percentages only, never player counts. */
 function Countries({ countries }: { countries: AdminStats["countries"] }) {

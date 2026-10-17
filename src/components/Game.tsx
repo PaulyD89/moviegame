@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { openToday, playToday } from "@/app/actions";
 import { msUntilNextPuzzle, puzzleDate, puzzleNumber } from "@/lib/daily-clock";
 import type { DailySync } from "@/lib/daily-play";
+import { currentBrowser } from "@/lib/browser";
 import { trafficSource } from "@/lib/traffic-source";
 import { cardKey, LINKS_TO_WIN, WORD } from "@/lib/types";
 import { loadNickname } from "./challenge/nickname";
@@ -59,7 +60,7 @@ export function Game() {
     // Finished on this phone before the server kept games: that result stands.
     if (saved && !saved.cardShownAt && saved.status !== "playing") return saved;
     const legacy = saved && !saved.cardShownAt && saved.status === "playing" ? saved : null;
-    const synced = await openToday(date, legacy, trafficSource(location.search, document.referrer));
+    const synced = await openToday(date, legacy, trafficSource(location.search, document.referrer), currentBrowser());
     return synced ? fromServer(date, synced) : saved;
   }, []);
 
