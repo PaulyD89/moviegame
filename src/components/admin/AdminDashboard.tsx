@@ -67,10 +67,6 @@ export function AdminDashboard() {
           <span className="text-xl font-light tracking-wide text-amber-400">Admin Dashboard</span>
         </h1>
         <div className="flex items-center gap-3 text-sm text-zinc-300">
-          <span className="flex items-center gap-1.5">
-            <span className={`size-2 rounded-full ${data.live_games > 0 ? "bg-emerald-400" : "bg-zinc-600"}`} />
-            Live games: <b className="tabular-nums text-white">{data.live_games}</b>
-          </span>
           <span aria-live="polite">{error ? "⚠ Refresh failed" : `Updated ${Math.max(0, Math.round((now - loadedAt) / 1000))}s ago`}</span>
           <button
             onClick={async () => {
