@@ -1,4 +1,5 @@
 import "server-only";
+import { AWKWARD } from "./awkward";
 import type { DailyState } from "./daily-play";
 import { savedOpener } from "./game";
 import { createAdminClient } from "./supabase/admin";
@@ -29,7 +30,10 @@ const toCsv = (films: { tmdbId: number; name: string; year?: number }[]) =>
 /** The path through the chain that most finishers took, card by card (the opener if nobody finished). */
 function mostPlayedPath(states: DailyState[], opener: Card): Card[] {
   // Each finished game as the cards it answered and the answers given: card, answer, card, answer...
-  const paths = states.map((s) => s.links.flatMap((l) => [l.card, l.answer]));
+  // Chains through a title we wouldn't post publicly are left out.
+  const paths = states
+    .map((s) => s.links.flatMap((l) => [l.card, l.answer]))
+    .filter((p) => !p.some((c) => c.kind === "movie" && AWKWARD.test(c.name)));
   const path: Card[] = [];
   let group = paths;
   for (let depth = 0; depth < 20 && group.length; depth++) {

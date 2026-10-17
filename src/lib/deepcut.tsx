@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { generateText } from "ai";
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
+import { AWKWARD } from "./awkward";
 import type { DailyState } from "./daily-play";
 import { logError } from "./errors";
 import { accessToken, graph, refreshToken, untilReady } from "./instagram";
@@ -27,8 +28,6 @@ const logo = readFile(join(process.cwd(), "assets/logo-share.png")).then(
   (b) => `data:image/png;base64,${b.toString("base64")}`,
 );
 
-/** Titles we'd rather not put on the account's feed, beyond TMDB's own adult flag. */
-const AWKWARD = /porn|nymphomaniac|xxx|erotic|sex tape/i;
 
 const chainOf = (s: DailyState) => s.links.flatMap((l) => [l.card, l.answer]);
 
