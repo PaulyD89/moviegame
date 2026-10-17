@@ -383,6 +383,12 @@ export async function matchGuess(card: Card, guess: string, used: Set<string>): 
       [nameKey(c.title), nameKey(c.original_title), titleKey(c.title), mainTitle(c.title)],
     ),
   );
+  // A film's full title beats another film's main title: "GoodFellas" is GoodFellas (1990), even
+  // once it's used, never "GoodFellas: Behind Closed Doors".
+  const fullTitle = items.filter(
+    (c) => closeness([key, titleKey(guess)], [nameKey(c.title), nameKey(c.original_title), titleKey(c.title)]) === best,
+  );
+  if (fullTitle.length) items = fullTitle;
   if (items.length === 0) {
     // Without "The Adventures of" ("Elmo in Grouchland"), if it points to exactly one film.
     const short = ranked(credits, (c) => closeness([titleKey(guess)], [shortTitleKey(c.title)]));
