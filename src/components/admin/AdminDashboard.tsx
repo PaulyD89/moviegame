@@ -153,7 +153,16 @@ export function AdminDashboard() {
         <>
           <Section title={`Daily Movie Chain #${data.puzzleNumber} (today)`}>
             <Tile label="Started" value={data.daily_started} />
-            <Tile label="Finished" value={data.daily_finished} />
+            <Tile
+              label="Finished"
+              value={
+                <>
+                  {data.daily_finished}{" "}
+                  <span className="text-base font-normal text-zinc-400">({pct(data.daily_finished, data.daily_started)})</span>
+                </>
+              }
+              hint="won or lost · % of started"
+            />
             <Tile label="Win rate" value={pct(data.daily_won, data.daily_finished)} />
             <Tile label="Avg links" value={data.daily_avg_links ?? "–"} />
           </Section>
@@ -571,7 +580,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Tile({ label, value, hint, big }: { label: string; value: number | string; hint?: string; big?: boolean }) {
+function Tile({ label, value, hint, big }: { label: string; value: React.ReactNode; hint?: string; big?: boolean }) {
   return (
     <div className="rounded-xl bg-white/5 p-3">
       <div className={`font-bold ${big ? "text-4xl text-amber-400" : "text-2xl"}`}>{value}</div>
