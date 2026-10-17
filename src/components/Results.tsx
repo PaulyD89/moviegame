@@ -294,9 +294,12 @@ function useShareCard(game: SavedGame) {
   return file;
 }
 
+const COMPARE_ROWS = 4;
+
 /** How your answers stacked up against everyone's today. Hidden until enough people have played. */
 function HowYouCompare({ number }: { number: number }) {
   const [rows, setRows] = useState<LinkCompare[]>([]);
+  const [showAll, setShowAll] = useState(false);
   useEffect(() => {
     let active = true;
     myAnswerStats(number)
@@ -308,6 +311,17 @@ function HowYouCompare({ number }: { number: number }) {
   }, [number]);
   if (rows.length === 0) return null;
   const rarest = rows.reduce((a, b) => (b.pct < a.pct ? b : a));
+  // The 4 most interesting rows first (rare picks, then most popular, then early cards), kept in
+  // chain order; the rest are a tap away.
+  const interest = (r: LinkCompare, i: number) => (r.pct <= 10 ? 0 : !r.top ? 1 : 2) * 100 + i;
+  const picked = new Set(
+    rows
+      .map((r, i) => ({ i, score: interest(r, i) }))
+      .sort((a, b) => a.score - b.score)
+      .slice(0, COMPARE_ROWS)
+      .map((r) => r.i),
+  );
+  const shown = showAll ? rows : rows.filter((_, i) => picked.has(i));
 
   return (
     <section className="px-4 py-3.5">
@@ -319,7 +333,7 @@ function HowYouCompare({ number }: { number: number }) {
         </p>
       )}
       <ul className="space-y-2.5">
-        {rows.map((r) => (
+        {shown.map((r) => (
           <li key={`${r.prompt.kind}-${r.prompt.id}`} className="flex items-center gap-3">
             {/* Your answer's photo or poster, like the chain above. */}
             <div className="relative aspect-[2/3] w-10 shrink-0 overflow-hidden rounded-md bg-zinc-800 ring-1 ring-white/10">
@@ -342,6 +356,17 @@ function HowYouCompare({ number }: { number: number }) {
           </li>
         ))}
       </ul>
+      {rows.length > COMPARE_ROWS && (
+        <button
+          onClick={() => {
+            setShowAll(!showAll);
+            if (!showAll) track("compare_show_all", { rows: rows.length });
+          }}
+          className="mt-2 min-h-9 text-[13px] font-semibold text-amber-400"
+        >
+          {showAll ? "Show less" : `Show all ${rows.length} ›`}
+        </button>
+      )}
     </section>
   );
 }
