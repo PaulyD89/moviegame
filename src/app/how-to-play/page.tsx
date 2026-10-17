@@ -68,6 +68,7 @@ export default function HowToPlayPage() {
             <li>Small typos and spellings by ear are fine; we&apos;ll show you the correct name.</li>
             <li>Alternate titles count, like &ldquo;The Road Warrior&rdquo; for Mad Max 2.</li>
             <li>After a wrong guess, skipping that card is free.</li>
+            <li>Each movie and actor can only be used once per chain. Repeat one and we&apos;ll ask for another, no letter.</li>
             <li>A new chain starts every day at midnight Eastern.</li>
           </ul>
         </Section>

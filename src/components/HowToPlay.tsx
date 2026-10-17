@@ -124,7 +124,8 @@ export function HowToPlayRules() {
 
       <p className="mt-4 text-center text-sm leading-snug text-white">
         Every other day starts with an actor instead: name a movie they were in. Small typos are OK;
-        we&apos;ll show you the right spelling. New chain every day.
+        we&apos;ll show you the right spelling. Each movie and actor can only be used once per chain;
+        repeat one and we&apos;ll ask for another, no letter. New chain every day.
       </p>
     </>
   );
