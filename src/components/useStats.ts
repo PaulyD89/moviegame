@@ -1,15 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { myStreak } from "@/app/actions";
-import { loadStats, saveStreak } from "./storage";
+import { myDailyRecord } from "@/app/actions";
+import { loadStats, saveDailyRecord, saveStreak } from "./storage";
 
-/** This phone's stats, with the streak brought up to date from the server's record of finished dailies. */
+/**
+ * This browser's stats, then brought up to date from the server's record of finished dailies
+ * (played, wins, links chart, streak), so every device linked by a save code matches.
+ */
 export function useSyncedStats() {
   const [stats, setStats] = useState(loadStats);
   useEffect(() => {
-    myStreak()
-      .then((s) => s && setStats(saveStreak(s.current, s.best, s.lastPlayed)))
+    myDailyRecord()
+      .then((r) => {
+        if (!r) return;
+        saveDailyRecord(r);
+        setStats(saveStreak(r.current, r.best, r.lastPlayed));
+      })
       .catch(() => {});
   }, []);
   return stats;

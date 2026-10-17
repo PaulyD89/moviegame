@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { puzzleDate, puzzleNumber } from "@/lib/daily-clock";
 import { answerStats } from "@/lib/answer-stats";
-import { dailyRank } from "@/lib/daily-log";
+import { dailyRank, dailyRecord } from "@/lib/daily-log";
 import { openDaily, playDaily, type DailyState } from "@/lib/daily-play";
 import { playerId } from "@/lib/player";
 import { vsRecord } from "@/lib/challenge";
@@ -88,10 +88,12 @@ export async function myBadgeFacts(): Promise<BadgeFacts | null> {
   };
 }
 
-/** Days in a row this player finished the daily (won or lost), and their best run. */
-export async function myStreak() {
+/** This player's daily record and streak from the server (the same on every linked device). */
+export async function myDailyRecord() {
   const pid = await playerId(false);
-  return pid ? playStreak(pid) : null;
+  if (!pid) return null;
+  const [record, streak] = await Promise.all([dailyRecord(pid), playStreak(pid)]);
+  return { ...record, ...streak };
 }
 
 /** This player's VS games played and won, from the server (the same on every linked device). */

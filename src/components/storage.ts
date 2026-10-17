@@ -122,6 +122,19 @@ export function saveStreak(streak: number, best: number, lastPlayed: number | nu
   return next;
 }
 
+/**
+ * The server's daily record, which every device linked by a save code shares. Kept only when it
+ * has at least as many games as this browser (a browser can hold games from before the server
+ * scored them).
+ */
+export function saveDailyRecord(r: { played: number; won: number; dist: number[]; linksTotal: number }) {
+  const stats = loadStats();
+  if (r.played < stats.played) return stats;
+  const next = { ...stats, played: r.played, won: r.won, dist: r.dist, linksTotal: r.linksTotal };
+  if (JSON.stringify(next) !== JSON.stringify(stats)) write(STATS_KEY, next satisfies Stats);
+  return next;
+}
+
 export function loadChallengeStats(): ChallengeStats {
   return read<ChallengeStats>(CHALLENGE_STATS_KEY) ?? { played: 0, won: 0, counted: [] };
 }
