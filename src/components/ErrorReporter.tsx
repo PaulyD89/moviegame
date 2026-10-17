@@ -32,8 +32,20 @@ export function ErrorReporter() {
       const where = e.filename ? ` @ ${e.filename.replace(location.origin, "")}:${e.lineno}:${e.colno}` : "";
       report(`${e.message}${where} [${browser()}]`);
     };
-    const onRejection = (e: PromiseRejectionEvent) =>
-      report(`${e.reason instanceof Error ? e.reason.message : String(e.reason)} [${browser()}]`);
+    // A rejected promise doesn't say where it came from, so read the stack: extensions are skipped,
+    // and the first script file named tells ours (/_next/...) from someone else's. DOMExceptions
+    // (browser APIs like storage or service workers) often have no stack at all.
+    const onRejection = (e: PromiseRejectionEvent) => {
+      const r = e.reason;
+      const stack = r instanceof Error && typeof r.stack === "string" ? r.stack : "";
+      if (/(chrome|moz|safari-web)-extension:/.test(stack)) return;
+      const file = stack.match(/(https?:\/\/[^\s)]+?):\d+:\d+/)?.[1];
+      const name = r instanceof Error && r.name !== "Error" ? `${r.name}: ` : "";
+      const where = file
+        ? ` @ ${file.replace(location.origin, "")}${file.startsWith(`${location.origin}/_next/`) ? "" : " (not our code)"}`
+        : " (no stack)";
+      report(`${name}${r instanceof Error ? r.message : String(r)}${where} [${browser()}]`);
+    };
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);
     return () => {
