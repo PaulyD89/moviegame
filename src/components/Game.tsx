@@ -350,13 +350,15 @@ function NewChainBanner() {
   );
 }
 
-export function Letters({ count }: { count: number }) {
+export function Letters({ count, small = false }: { count: number; small?: boolean }) {
   return (
-    <div className="flex gap-2" aria-label={`${count} of ${WORD.length} letters`}>
+    <div className={`flex ${small ? "gap-1.5" : "gap-2"}`} aria-label={`${count} of ${WORD.length} letters`}>
       {WORD.split("").map((ch, i) => (
         <span
           key={ch}
-          className={`flex h-11 w-11 items-center justify-center rounded-lg font-display text-2xl ${
+          className={`flex items-center justify-center font-display ${
+            small ? "h-8 w-8 rounded-md text-lg" : "h-11 w-11 rounded-lg text-2xl"
+          } ${
             i < count
               ? "animate-pop bg-red-600 text-white shadow-lg shadow-red-900/50"
               : "border border-white/15 text-white/15"

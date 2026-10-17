@@ -529,3 +529,32 @@ async function easierCard(card: Card, from: Card | null, used: Set<string>, seed
   }
   return null;
 }
+
+/** The card behind a "movie:123" / "person:456" key. */
+export async function cardFromKey(key: string): Promise<Card | null> {
+  const [kind, id] = key.split(":");
+  if (kind === "movie") return movieCard(await getMovie(Number(id)));
+  if (kind === "person") return personCard(await getPerson(Number(id)));
+  return null;
+}
+
+/**
+ * Answers the game would accept for a card, best known first: a person's most-rated films, or a
+ * movie's top-billed cast. For "you could have said" after a loss.
+ */
+export async function bestKnownAnswers(card: Card, exclude: Set<string>, count: number): Promise<Card[]> {
+  if (card.kind === "person") {
+    const seen = new Set<number>();
+    const films = (await getPerson(card.id)).movie_credits.cast
+      .filter((c) => c.poster_path && !NOT_A_ROLE.test(c.character ?? "") && !exclude.has(cardKey({ kind: "movie", id: c.id })))
+      .sort((a, b) => b.vote_count - a.vote_count)
+      .filter((c) => !seen.has(c.id) && !!seen.add(c.id))
+      .slice(0, count);
+    return Promise.all(films.map(async (c) => movieCard(await getMovie(c.id))));
+  }
+  const cast = (await getMovie(card.id)).credits.cast
+    .filter((c) => c.profile_path && !NOT_A_ROLE.test(c.character ?? "") && !exclude.has(cardKey({ kind: "person", id: c.id })))
+    .sort((a, b) => a.order - b.order)
+    .slice(0, count);
+  return Promise.all(cast.map(async (c) => personCard(await getPerson(c.id))));
+}

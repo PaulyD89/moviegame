@@ -4,8 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { useEffect, useState } from "react";
-import { myAnswerStats, myDailyRank, myName } from "@/app/actions";
-import type { LinkCompare } from "@/lib/answer-stats";
+import { myAnswerStats, myCouldHaveSaid, myDailyRank, myName } from "@/app/actions";
+import type { CouldHaveSaid as CouldHaveSaidData, LinkCompare } from "@/lib/answer-stats";
 import { msUntilNextPuzzle } from "@/lib/daily-clock";
 import { CLAIM_STREAK, LINKS_TO_WIN, WORD, type Card } from "@/lib/types";
 import { Letters } from "./Game";
@@ -87,6 +87,7 @@ export function Results({ game }: { game: SavedGame }) {
   const card = useShareCard(game);
 
   const won = game.status === "won";
+  const rank = useTodayRank(game.number);
   const { oldest, newest, decades, deepCut } = insights(game);
   const chain = [
     ...game.links.flatMap((l) => [
@@ -127,7 +128,7 @@ export function Results({ game }: { game: SavedGame }) {
 
   // One line instead of the old speed box: links · fast · time · points.
   const resultLine = [
-    `${game.links.length}/${LINKS_TO_WIN} links`,
+    ...(won ? [`${game.links.length}/${LINKS_TO_WIN} links`] : []),
     ...(typeof game.durationMs === "number" ? [`⚡ ${pts.speed} fast`] : []),
     ...(ms !== null ? [formatTime(ms)] : []),
     ...(typeof game.durationMs === "number" ? [`${pts.total} pts`] : []),
@@ -136,11 +137,32 @@ export function Results({ game }: { game: SavedGame }) {
   return (
     <div className="flex w-full flex-col items-center gap-5">
       <Logo size="md" />
-      <h2 className="-mt-2 text-center font-display text-[2.55rem] leading-tight tracking-wide text-amber-400">
-        {won ? (game.letters === 0 ? "Perfect game!" : "That's a wrap!") : game.links.length >= 8 ? "So close!" : "Cut!"}
-      </h2>
-
-      <Letters count={game.letters} />
+      {won ? (
+        <>
+          <h2 className="-mt-2 text-center font-display text-[2.55rem] leading-tight tracking-wide text-amber-400">
+            {game.letters === 0 ? "Perfect game!" : "That's a wrap!"}
+          </h2>
+          <Letters count={game.letters} />
+        </>
+      ) : (
+        // A loss leads with the run (links, and who you beat), then how it ended.
+        <div className="-mt-2 flex flex-col items-center gap-3 text-center">
+          <div>
+            <h2 className="font-display text-[2.55rem] leading-tight tracking-wide text-amber-400">
+              {game.links.length} {game.links.length === 1 ? "LINK" : "LINKS"}
+            </h2>
+            {rank && rank.others >= 3 && (
+              <p className="text-[15px] text-zinc-300">
+                You beat <b className="font-semibold text-white">{rank.percentBeat}% of players</b> today
+              </p>
+            )}
+          </div>
+          <Letters count={game.letters} small />
+          <p className="-mt-1 text-sm font-medium text-red-300">
+            Game Over on <b className="font-semibold text-white">{game.card.name}</b>
+          </p>
+        </div>
+      )}
 
       <div className="-mt-1 flex flex-col items-center gap-1 text-center">
         <p className="font-display text-xl tracking-wide text-white">{resultLine}</p>
@@ -165,6 +187,8 @@ export function Results({ game }: { game: SavedGame }) {
           Play with friends
         </Link>
       </div>
+
+      {!won && <CouldHaveSaid number={game.number} />}
 
       <ClaimName />
 
@@ -196,7 +220,7 @@ export function Results({ game }: { game: SavedGame }) {
 
       {/* How your day went: one card, its parts split by thin dividers (empty parts drop out). */}
       <div className="w-full divide-y divide-white/10 overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/10">
-        <TodayRank number={game.number} />
+        {won && <TodayRank rank={rank} />}
         <HowYouCompare number={game.number} />
         {(decades.length > 0 || oldest || deepCut) && (
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 px-4 py-3.5">
@@ -292,6 +316,48 @@ function useShareCard(game: SavedGame) {
     };
   }, [serverScored, game.number]);
   return file;
+}
+
+/** After a loss: up to 3 answers that would have worked on the card that ended the game. */
+function CouldHaveSaid({ number }: { number: number }) {
+  const [data, setData] = useState<CouldHaveSaidData | null>(null);
+  useEffect(() => {
+    let active = true;
+    // The finish is logged in the background, so retry briefly if it hasn't landed yet.
+    const attempt = (tries: number) =>
+      myCouldHaveSaid(number)
+        .then((d) => {
+          if (!active) return;
+          if (d) setData(d);
+          else if (tries > 0) setTimeout(() => attempt(tries - 1), 1500);
+        })
+        .catch(() => {});
+    attempt(3);
+    return () => {
+      active = false;
+    };
+  }, [number]);
+  if (!data) return null;
+  const { card, answers } = data;
+  return (
+    <section className="w-full rounded-2xl bg-white/5 px-4 py-3.5 ring-1 ring-white/10">
+      <h3 className="text-[10.5px] uppercase tracking-[0.16em] text-zinc-400">You could have said</h3>
+      <p className="mt-0.5 mb-3 text-sm text-zinc-300">
+        {card.kind === "person" ? "Films" : "Actors"} that would have worked for <b className="text-white">{card.name}</b>
+      </p>
+      <ul className="grid grid-cols-3 gap-2.5">
+        {answers.map(({ card: a, mostSaid }) => (
+          <li key={`${a.kind}-${a.id}`} className="min-w-0 text-center">
+            <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-zinc-800 ring-1 ring-white/10">
+              {a.image && <Image src={a.image} alt={a.name} fill sizes="110px" className="object-cover" />}
+            </div>
+            <div className="mt-1.5 line-clamp-2 text-xs font-semibold leading-tight text-white">{a.name}</div>
+            <div className="mt-0.5 text-[11px] text-zinc-400">{mostSaid ? "Most said" : (a.year ?? "")}</div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 const COMPARE_ROWS = 4;
@@ -427,12 +493,11 @@ function NextPuzzle() {
   );
 }
 
-/** "You beat 72% of players today", once enough people have finished to make it meaningful. */
-function TodayRank({ number }: { number: number }) {
+/** Where today's game ranks ("you beat 72%"); the finish is logged in the background, so retry briefly. */
+function useTodayRank(number: number) {
   const [rank, setRank] = useState<{ others: number; percentBeat: number } | null>(null);
   useEffect(() => {
     let active = true;
-    // The finish is logged in the background, so retry briefly if it hasn't landed yet.
     const attempt = (tries: number) =>
       myDailyRank(number)
         .then((r) => {
@@ -446,6 +511,11 @@ function TodayRank({ number }: { number: number }) {
       active = false;
     };
   }, [number]);
+  return rank;
+}
+
+/** "You beat 72% of players today", once enough people have finished to make it meaningful. */
+function TodayRank({ rank }: { rank: { others: number; percentBeat: number } | null }) {
   if (!rank || rank.others < 3) return null;
   return (
     <div className="flex items-center gap-3.5 bg-gradient-to-r from-amber-400/10 to-transparent px-4 py-3.5">
