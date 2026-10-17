@@ -347,6 +347,7 @@ function Playing({
             <b className="text-white">{current?.nickname}</b>
             {card.kind === "movie" ? " to name an actor…" : " to name a movie…"}
           </p>
+          {me?.out && <p className="mt-1 text-sm text-zinc-400">Stick around to see who wins and jump into the rematch.</p>}
           {me && current && !current.live && (
             <>
               <p className="mt-1 text-sm text-zinc-500">
