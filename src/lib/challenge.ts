@@ -8,7 +8,7 @@ import { createAdminClient } from "./supabase/admin";
 import {
   MAX_PLAYERS,
   SHOT_CLOCK_MS,
-  ABANDON_MS, STALL_MS,
+  ABANDON_MS, HOST_AWAY_MS, STALL_MS,
   type ChallengeView,
   type MoveOutcome,
   type MoveResult,
@@ -55,6 +55,11 @@ type MoveRow = {
 const db = () => createAdminClient();
 const isOut = (p: PlayerRow) => p.letters >= WORD.length;
 const isLive = (p: PlayerRow, now: number) => now - Date.parse(p.last_seen) < LIVE_MS;
+/** The host left the lobby screen (sent the invite from another app and never came back...). */
+const hostAway = (players: PlayerRow[], c: ChallengeRow, now: number) => {
+  const host = players.find((p) => p.player_id === c.host_id);
+  return c.status === "lobby" && (!host || now - Date.parse(host.last_seen) > HOST_AWAY_MS);
+};
 
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I/L
 const newCode = () =>
@@ -274,21 +279,23 @@ export async function startChallenge(id: string, playerId: string) {
   const state = await load(id);
   if (!state) return false;
   const { challenge, players } = state;
-  if (challenge.host_id !== playerId || challenge.status !== "lobby" || players.length < 2) {
-    return false;
-  }
+  const me = players.find((p) => p.player_id === playerId);
+  const byHost = challenge.host_id === playerId;
+  if (!me || (!byHost && !hostAway(state.players, challenge, Date.now()))) return false;
+  if (challenge.status !== "lobby" || players.length < 2) return false;
+  // Started for an absent host: the starter goes first, since the host may not be back soon.
+  const first = byHost ? players[0] : me;
   const used = new Set<string>();
   const card = await startCard(used, `${id}:start`);
   const started = await commit(challenge, {
     status: "playing",
     card,
     used: [cardKey(card)],
-    turn_seat: players[0].seat,
+    turn_seat: first.seat,
     ...turnTiming(players, Date.now()),
   });
   if (started) {
-    const first = players[0];
-    const host = players.find((p) => p.player_id === playerId)?.nickname ?? "The host";
+    const host = me.nickname;
     if (first.player_id !== playerId) {
       notifyLater([first], "🐴 Game on. Your turn!", promptLine(card), id);
     }
@@ -589,6 +596,7 @@ export async function viewChallenge(id: string, playerId: string | null): Promis
     })),
     youSeat: me?.seat ?? null,
     youAreHost: c.host_id === playerId,
+    hostAway: hostAway(state.players, c, now),
     code: c.code,
     rematchId: c.rematch_id,
     waiting: state.waiting.map((w) => w.nickname),

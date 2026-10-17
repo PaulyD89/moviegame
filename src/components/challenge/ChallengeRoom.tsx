@@ -171,13 +171,20 @@ function Lobby({ state, reload }: { state: ChallengeView; reload: () => Promise<
         <>
           <InviteButton host={host} code={state.code} />
           <NotifyButton mode="challenge" code={state.code} />
-          {state.youAreHost ? (
+          {!state.youAreHost && state.hostAway && state.players.length >= 2 && (
+            <p className="-mb-2 text-center text-sm text-zinc-300">
+              {host} stepped away. You can start the game.
+            </p>
+          )}
+          {state.youAreHost || state.hostAway ? (
             <button
               disabled={isPending || state.players.length < 2}
               onClick={() =>
                 startTransition(async () => {
                   const ok = await start(state.id);
-                  if (!ok) setError("Couldn't start. Need at least 2 players.");
+                  if (!ok) {
+                    setError(state.youAreHost ? "Couldn't start. Need at least 2 players." : `${host} is back. They'll start it.`);
+                  }
                   await reload();
                 })
               }

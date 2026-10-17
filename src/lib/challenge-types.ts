@@ -6,6 +6,8 @@ export const SHOT_CLOCK_MS = 30_000;
 export const STALL_MS = 24 * 60 * 60 * 1000;
 /** A game nobody has opened for this long is closed as abandoned: no winner, no win or loss. */
 export const ABANDON_MS = 3 * 24 * 60 * 60 * 1000;
+/** A host off the lobby screen this long hands the Start button to anyone seated. */
+export const HOST_AWAY_MS = 30_000;
 
 export type ChallengePlayer = {
   seat: number;
@@ -46,6 +48,8 @@ export type ChallengeView = {
   moves: ChallengeMove[];
   youSeat: number | null;
   youAreHost: boolean;
+  /** In the lobby, the host has been off the screen a while, so any seated player can start. */
+  hostAway: boolean;
   code: string | null;
   rematchId: string | null;
   /** Friends who arrived after the start and will be seated in the rematch. */
