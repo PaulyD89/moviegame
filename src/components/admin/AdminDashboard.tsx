@@ -24,6 +24,7 @@ export function AdminDashboard() {
   const [loadedAt, setLoadedAt] = useState(0);
   const [now, setNow] = useState(0);
   const [error, setError] = useState(false);
+  const [tab, setTab] = useState<"stats" | "games">("stats");
   const refresh = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -81,94 +82,131 @@ export function AdminDashboard() {
 
       <ErrorBanner errors={data.errors} now={now || loadedAt} onChange={() => refresh.current()} />
 
-      <Section title="Live right now">
-        <Tile label="Live games" value={data.live_games} hint="someone on screen in the last 30s" big />
-        <Tile label="Players on screen" value={data.players_on_screen} hint="in a lobby or game" big />
-      </Section>
+      <nav className="flex gap-1 rounded-xl bg-white/5 p-1 ring-1 ring-white/10" role="tablist">
+        <TabButton active={tab === "stats"} onClick={() => setTab("stats")}>
+          Stats
+        </TabButton>
+        <TabButton active={tab === "games"} onClick={() => setTab("games")}>
+          Active games
+          {data.live_games > 0 && (
+            <span className="relative flex size-2.5" aria-label={`${data.live_games} live now`}>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative inline-flex size-2.5 rounded-full bg-emerald-400" />
+            </span>
+          )}
+        </TabButton>
+      </nav>
 
-      <Section title={`Daily Movie Chain #${data.puzzleNumber} (today)`}>
-        <Tile label="Started" value={data.daily_started} />
-        <Tile label="Finished" value={data.daily_finished} />
-        <Tile label="Win rate" value={pct(data.daily_won, data.daily_finished)} />
-        <Tile label="Avg links" value={data.daily_avg_links ?? "–"} />
-      </Section>
+      {tab === "games" ? (
+        <>
+          <Section title="Live right now">
+            <Tile label="Live games" value={data.live_games} hint="someone on screen in the last 30s" big />
+            <Tile label="Players on screen" value={data.players_on_screen} hint="in a lobby or game" big />
+          </Section>
 
-      <Growth growth={data.growth} />
-      <Returns returns={data.returns} today={data.puzzleNumber} />
-      <Funnel
-        title="Top sources · last 7 days"
-        column="Source"
-        rows={data.sources.map((s) => ({ ...s, label: s.source }))}
-        empty="Recording started Oct 16; this fills in as people play."
-      />
-      <Funnel
-        title="Browsers · last 7 days"
-        column="Browser"
-        rows={data.browsers.map((b) => ({ ...b, label: b.browser }))}
-        empty="Recording started Oct 17; this fills in as people play."
-      />
-      <Countries countries={data.countries} />
+          <section>
+            <h2 className="mb-2 text-xs uppercase tracking-widest text-zinc-300">Active games (last 24h)</h2>
+            {data.activeGames.length === 0 ? (
+              <p className="text-sm text-zinc-400">No active games.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl ring-1 ring-white/10">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-white/5 text-xs uppercase tracking-wider text-zinc-300">
+                    <tr>
+                      <th className="px-3 py-2">Code</th>
+                      <th className="px-3 py-2">Status</th>
+                      <th className="px-3 py-2">Players</th>
+                      <th className="px-3 py-2 text-right">Last move</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.activeGames.map((g, i) => (
+                      <tr key={g.code ?? i} className="border-t border-white/5">
+                        <td className="px-3 py-2 font-display tracking-widest">{g.code ?? "—"}</td>
+                        <td className="px-3 py-2 text-zinc-200">{g.status === "lobby" ? "Lobby" : "Playing"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap gap-x-3 gap-y-1">
+                            {g.players.map((p, j) => (
+                              <span key={j} className="inline-flex items-center gap-1 whitespace-nowrap">
+                                <span
+                                  className={`h-2 w-2 rounded-full ${p.live ? "bg-emerald-400" : "bg-zinc-600"}`}
+                                  aria-label={p.live ? "on screen" : "away"}
+                                />
+                                <span className={p.turn ? "font-bold text-amber-400" : ""}>{p.nickname}</span>
+                                {p.letters > 0 && <span className="text-xs text-red-400">{"MOVIE".slice(0, p.letters)}</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-right text-zinc-300">{ago(g.updatedAt, now || loadedAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="mt-2 text-xs text-zinc-400">Gold name = whose turn it is. Green dot = on screen now.</p>
+          </section>
 
-      <Section title="Challenges">
-        <Tile label="In progress" value={data.games_in_progress} />
-        <Tile label="Lobbies open" value={data.lobbies_open} hint="last 24h" />
-        <Tile label="Created today" value={data.challenges_today} />
-        <Tile label="Finished today" value={data.finished_today} />
-        <Tile label="All time" value={data.challenges_total} />
-      </Section>
+        </>
+      ) : (
+        <>
+          <Section title={`Daily Movie Chain #${data.puzzleNumber} (today)`}>
+            <Tile label="Started" value={data.daily_started} />
+            <Tile label="Finished" value={data.daily_finished} />
+            <Tile label="Win rate" value={pct(data.daily_won, data.daily_finished)} />
+            <Tile label="Avg links" value={data.daily_avg_links ?? "–"} />
+          </Section>
 
-      <Section title="Notifications">
-        <Tile label="Devices with alerts" value={data.push_devices} />
-        <Tile label="Nightly reminder" value={data.push_daily} />
-      </Section>
+          <Growth growth={data.growth} />
+          <Returns returns={data.returns} today={data.puzzleNumber} />
+          <Funnel
+            title="Top sources · last 7 days"
+            column="Source"
+            rows={data.sources.map((s) => ({ ...s, label: s.source }))}
+            empty="Recording started Oct 16; this fills in as people play."
+          />
+          <Funnel
+            title="Browsers · last 7 days"
+            column="Browser"
+            rows={data.browsers.map((b) => ({ ...b, label: b.browser }))}
+            empty="Recording started Oct 17; this fills in as people play."
+          />
+          <Countries countries={data.countries} />
 
-      <section>
-        <h2 className="mb-2 text-xs uppercase tracking-widest text-zinc-300">Active games (last 24h)</h2>
-        {data.activeGames.length === 0 ? (
-          <p className="text-sm text-zinc-400">No active games.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-xl ring-1 ring-white/10">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-white/5 text-xs uppercase tracking-wider text-zinc-300">
-                <tr>
-                  <th className="px-3 py-2">Code</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Players</th>
-                  <th className="px-3 py-2 text-right">Last move</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.activeGames.map((g, i) => (
-                  <tr key={g.code ?? i} className="border-t border-white/5">
-                    <td className="px-3 py-2 font-display tracking-widest">{g.code ?? "—"}</td>
-                    <td className="px-3 py-2 text-zinc-200">{g.status === "lobby" ? "Lobby" : "Playing"}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-x-3 gap-y-1">
-                        {g.players.map((p, j) => (
-                          <span key={j} className="inline-flex items-center gap-1 whitespace-nowrap">
-                            <span
-                              className={`h-2 w-2 rounded-full ${p.live ? "bg-emerald-400" : "bg-zinc-600"}`}
-                              aria-label={p.live ? "on screen" : "away"}
-                            />
-                            <span className={p.turn ? "font-bold text-amber-400" : ""}>{p.nickname}</span>
-                            {p.letters > 0 && <span className="text-xs text-red-400">{"MOVIE".slice(0, p.letters)}</span>}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-right text-zinc-300">{ago(g.updatedAt, now || loadedAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <p className="mt-2 text-xs text-zinc-400">Gold name = whose turn it is. Green dot = on screen now.</p>
-      </section>
+          <Section title="Challenges">
+            <Tile label="In progress" value={data.games_in_progress} />
+            <Tile label="Lobbies open" value={data.lobbies_open} hint="last 24h" />
+            <Tile label="Created today" value={data.challenges_today} />
+            <Tile label="Finished today" value={data.finished_today} />
+            <Tile label="All time" value={data.challenges_total} />
+          </Section>
 
-      <MissedAnswers />
-      <LetterboxdPanel today={data.puzzleNumber} />
+          <Section title="Notifications">
+            <Tile label="Devices with alerts" value={data.push_devices} />
+            <Tile label="Nightly reminder" value={data.push_daily} />
+          </Section>
+
+          <MissedAnswers />
+          <LetterboxdPanel today={data.puzzleNumber} />
+        </>
+      )}
     </div>
+  );
+}
+
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg text-sm font-semibold ${
+        active ? "bg-amber-400 text-black" : "text-zinc-300 active:bg-white/10"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
