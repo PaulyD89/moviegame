@@ -81,6 +81,17 @@ const AUDIENCE_RULES_FROM = "2026-10-15";
  */
 const SHAPE_RULES_FROM = "2026-10-17";
 const shapeRules = (seed: string) => rulesDate(seed) >= SHAPE_RULES_FROM;
+/**
+ * From puzzle #5 (2026-10-18; first actor day #6): actor cards come from a movie's top 4-5 billed
+ * who have a few well-known films. Every card on an actor day is "name a movie this person was
+ * in", and #4's losses were all on supporting actors few people could place (Joe Grifasi...).
+ * Only actor days deal actor cards, so movie days don't change.
+ */
+const ACTOR_RULES_FROM = "2026-10-18";
+const actorRules = (seed: string) => rulesDate(seed) >= ACTOR_RULES_FROM;
+/** On actor days, an actor card needs at least this many well-known films (2,000+ votes); cards 8-10 fewer. */
+const ACTOR_MIN_FAMOUS = 6;
+const ACTOR_MIN_FAMOUS_LATE = 4;
 /** Daily cards from here on (1 = the opener) get the harder pick. */
 export const LATE_CARD = 8;
 
@@ -174,14 +185,26 @@ async function nextPersonFor(movie: TmdbMovie, used: Set<string>, seed: string, 
       !NOT_A_ROLE.test(c.character ?? ""),
   );
   const wantClassic = roll(`${seed}:era`) < CLASSIC_SHARE;
-  // Late cards look past the two leads to the supporting cast first.
-  const tiers = late ? [[2, 10], [0, 12], [0, 30]] : [[0, 6], [0, 12], [0, 30]];
-  for (const [minOrder, maxOrder] of tiers) {
+  const strict = actorRules(seed);
+  // Late cards look past the two leads to the supporting cast first. With the actor-day rules
+  // everything stays within the top 5 billed, and someone known enough to name a film for,
+  // before loosening (the last tier takes anyone, so a chain never dead-ends here).
+  const tiers = strict
+    ? late
+      ? [[2, 5], [0, 5], [0, 8], [0, 30]]
+      : [[0, 5], [0, 8], [0, 30]]
+    : late
+      ? [[2, 10], [0, 12], [0, 30]]
+      : [[0, 6], [0, 12], [0, 30]];
+  for (const [i, [minOrder, maxOrder]] of tiers.entries()) {
     const tier = cast.filter((c) => c.order >= minOrder && c.order < maxOrder);
     if (tier.length === 0) continue;
-    const people = (await Promise.all(tier.map((c) => getPerson(c.id).catch(() => null)))).filter(
+    const found = (await Promise.all(tier.map((c) => getPerson(c.id).catch(() => null)))).filter(
       (p): p is TmdbPerson => !!p,
     );
+    const lastTier = i === tiers.length - 1;
+    const people = strict && !lastTier ? found.filter((p) => famousCredits(p) >= (late ? ACTOR_MIN_FAMOUS_LATE : ACTOR_MIN_FAMOUS)) : found;
+    if (people.length === 0) continue;
     if (audienceRules(seed)) {
       // Recognizable actors come up more, but not every time: weight grows with the square root
       // of their well-known films (a lead star ~2x a working character actor, ~10x an unknown).
